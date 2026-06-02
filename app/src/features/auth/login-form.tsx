@@ -1,26 +1,69 @@
 "use client";
 
-import { useActionState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { loginAction, type LoginState } from "./actions";
+import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
+  const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") ?? "";
-  const [state, formAction, pending] = useActionState<
-    LoginState | undefined,
-    FormData
-  >(loginAction, undefined);
+  const next = params.get("next");
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setPending(true);
+
+    const supabase = createClient();
+
+    // 1. Iniciar sesión (el SDK guarda las cookies automáticamente)
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    if (signInError) {
+      setError("Email o contraseña incorrectos");
+      setPending(false);
+      return;
+    }
+
+    // 2. Obtener el rol para redirigir al destino correcto
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    let target = next || "/cierre";
+
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profile?.role === "admin") {
+        target = next || "/dashboard";
+      }
+    }
+
+    // 3. Refrescar el router para que el middleware vea la sesión y redirigir
+    router.refresh();
+    router.push(target);
+  }
 
   return (
-    <form action={formAction} className="space-y-4">
-      <input type="hidden" name="next" value={next} />
-
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="email">Correo</Label>
         <Input
@@ -31,6 +74,8 @@ export function LoginForm() {
           autoComplete="username"
           required
           placeholder="tu@correo.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           disabled={pending}
         />
       </div>
@@ -44,20 +89,22 @@ export function LoginForm() {
           autoComplete="current-password"
           required
           placeholder="••••••••"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
           disabled={pending}
         />
       </div>
 
-      {state?.error && (
+      {error && (
         <Alert variant="destructive">
-          <AlertDescription>{state.error}</AlertDescription>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       <Button type="submit" className="w-full h-11 text-base" disabled={pending}>
         {pending ? (
           <>
-            <Loader2 className="size-4 animate-spin" /> Iniciando…
+            <Loader2 className="size-4 mr-2 animate-spin" /> Iniciando…
           </>
         ) : (
           "Entrar"
