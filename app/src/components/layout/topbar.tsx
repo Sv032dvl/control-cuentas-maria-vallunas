@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { LogOut, Moon, Sun, User } from "lucide-react";
@@ -45,11 +46,20 @@ export function Topbar({ nombre, role }: Props) {
     <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
         <div className="flex items-center gap-2">
-          <div className="size-8 rounded-lg bg-primary/15 text-primary grid place-items-center text-sm font-bold">
-            MV
+          {/* Logo real en lugar del badge "MV" */}
+          <div className="size-9 rounded-lg bg-[#fff3d4] grid place-items-center overflow-hidden border border-[#D8A22F]/20">
+            <Image
+              src="/logo.svg"
+              alt="María Vallunas"
+              width={30}
+              height={33}
+              className="object-contain"
+            />
           </div>
           <div className="hidden sm:flex flex-col leading-tight">
-            <span className="text-sm font-semibold">María Vallunas</span>
+            <span className="text-sm font-semibold text-[#5E3B3C] dark:text-foreground">
+              María Vallunas
+            </span>
             <span className="text-[11px] text-muted-foreground uppercase tracking-wide">
               Control de caja
             </span>
