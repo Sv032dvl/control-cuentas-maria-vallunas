@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
@@ -7,6 +8,7 @@ import { LogOut, Moon, Sun, User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -33,7 +35,11 @@ function initials(nombre: string) {
 export function Topbar({ nombre, role }: Props) {
   const { theme, setTheme } = useTheme();
   const router = useRouter();
-  const dark = theme === "dark";
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  const dark = mounted && theme === "dark";
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -90,14 +96,16 @@ export function Topbar({ nombre, role }: Props) {
               <span className="hidden sm:inline">{nombre}</span>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>
-                <div className="flex flex-col">
-                  <span>{nombre}</span>
-                  <span className="text-[11px] text-muted-foreground capitalize">
-                    {role}
-                  </span>
-                </div>
-              </DropdownMenuLabel>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>
+                  <div className="flex flex-col">
+                    <span>{nombre}</span>
+                    <span className="text-[11px] text-muted-foreground capitalize">
+                      {role}
+                    </span>
+                  </div>
+                </DropdownMenuLabel>
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleSignOut}

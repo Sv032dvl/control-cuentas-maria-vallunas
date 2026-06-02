@@ -33,13 +33,13 @@ export default function LoginPage() {
           width={700}
           height={960}
           priority
-          className="opacity-[0.08] scale-150 select-none"
+          className="opacity-[0.25] scale-150 select-none"
           style={{ objectFit: "contain" }}
         />
       </div>
 
       {/* ── Card de login ─────────────────────────────────────── */}
-      <Card className="w-full max-w-sm shadow-2xl border border-[#D8A22F]/20 bg-white/85 backdrop-blur-sm">
+      <Card className="w-full max-w-sm shadow-2xl border border-[#D8A22F]/20 bg-white/72 backdrop-blur-md">
         <CardHeader className="text-center space-y-4 pt-8 pb-4">
 
           {/* Logo principal */}
@@ -54,15 +54,9 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* Nombre y subtítulo */}
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight text-[#5E3B3C]">
-              María Vallunas
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Control de caja diario
-            </p>
-          </div>
+          <p className="text-sm text-[#5E3B3C]/80 max-md:text-[#5E3B3C] max-md:font-medium">
+            Control de caja diario
+          </p>
 
           {/* Separador decorativo dorado */}
           <div className="flex items-center justify-center gap-2">
