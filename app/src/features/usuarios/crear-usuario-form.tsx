@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useTransition } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Loader2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,22 +22,11 @@ export function CrearUsuarioForm() {
   const [open, setOpen] = useState(false);
   // rol en estado local + hidden input → FormData lo lee correctamente
   const [role, setRole] = useState<"empleado" | "admin">("empleado");
+  const [error, setError] = useState<string | null>(null);
 
-  const [state, formAction, pending] = useActionState<
-    UsuarioActionState | undefined,
-    FormData
-  >(crearUsuarioAction, undefined);
+  const [pending, startTransition] = useTransition();
 
   const formRef = useRef<HTMLFormElement>(null);
-
-  // Cerrar diálogo + toast en éxito
-  useEffect(() => {
-    if (state?.success) {
-      toast.success(state.message ?? "Usuario creado");
-      setOpen(false);
-      setRole("empleado");
-    }
-  }, [state]);
 
   // Resetear form cuando el diálogo se abre de nuevo
   function handleOpenChange(next: boolean) {
@@ -45,7 +34,32 @@ export function CrearUsuarioForm() {
     if (next) {
       formRef.current?.reset();
       setRole("empleado");
+      setError(null);
     }
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+
+    if (!formRef.current) return;
+
+    const formData = new FormData(formRef.current);
+    formData.set("role", role);
+
+    startTransition(async () => {
+      const result = await crearUsuarioAction(undefined, formData);
+
+      if (result.success) {
+        toast.success(result.message ?? "Usuario creado");
+        setOpen(false);
+        setRole("empleado");
+        formRef.current?.reset();
+      } else {
+        setError(result.error ?? "Error desconocido");
+        toast.error(result.error ?? "Error desconocido");
+      }
+    });
   }
 
   return (
@@ -67,7 +81,7 @@ export function CrearUsuarioForm() {
           </DialogDescription>
         </DialogHeader>
 
-        <form ref={formRef} action={formAction} className="space-y-4 mt-2">
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-4 mt-2">
 
           {/* Nombre */}
           <div className="space-y-1.5">
@@ -147,14 +161,12 @@ export function CrearUsuarioForm() {
                 <span className="text-xs opacity-70">Acceso total</span>
               </button>
             </div>
-            {/* Hidden input que FormData sí puede leer */}
-            <input type="hidden" name="role" value={role} />
           </div>
 
           {/* Error */}
-          {state?.error && (
+          {error && (
             <Alert variant="destructive">
-              <AlertDescription>{state.error}</AlertDescription>
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
