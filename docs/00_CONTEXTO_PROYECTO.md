@@ -209,33 +209,57 @@ Esto evita compartir `service_role` keys en chats.
 
 ---
 
-## 9. Plan de ejecución
+## 9. Plan de ejecución (actualizado 2026-06-01)
 
 ```
-✅ FASE 0 — Discovery y arquitectura (este documento)
+✅ FASE 0 — Discovery y arquitectura
+✅ FASE 3 — Frontend MVP base (deployado, SIN BD aún)
+   - Repo: github.com/Sv032dvl/control-cuentas-maria-vallunas
+   - Prod: https://app-rho-mauve-39.vercel.app
+   - Stack real: Next.js 16.2.6 + Tailwind (no Vite — cambio en implementación)
+   - Auth básica + rutas protegidas por rol
+   - 14 rutas montadas: /, /login, /cierre, /dashboard,
+     /dashboard/usuarios, /dashboard/catalogos, /dashboard/cierres,
+     /dashboard/cierres/[id], /inventario
+   - Variables de entorno configuradas en Vercel
+   - ⚠️ Las páginas existen pero hacen queries a tablas que aún no existen
 
-🔜 FASE 1 — Base de datos
-   1.1. Rotar service_role key
-   1.2. Generar SQL completo (tablas + RLS + catálogos sembrados)
-   1.3. Aplicar en Supabase SQL Editor
-   1.4. Autogenerar tipos TypeScript
+🔜 FASE 1.2 — Base de datos (BLOQUEANTE: sin esto el sistema NO opera)
+   1.2.1. Generar SQL completo (tablas + RLS + catálogos + vistas)
+   1.2.2. Aplicar manualmente en Supabase SQL Editor
+   1.2.3. Autogenerar tipos TypeScript: `supabase gen types typescript`
+   1.2.4. Conectar componentes existentes a queries reales
 
-⏳ FASE 2 — Wireframe UX
-   2.1. HTML estático del formulario nocturno mobile-first
-   2.2. Validar flujo con el empleado real
-
-⏳ FASE 3 — Frontend MVP
-   3.1. Setup React + Vite + Tailwind + supabase-js
-   3.2. Auth + routing por rol
-   3.3. Formulario cierre nocturno
-   3.4. Dashboard admin básico
+⏳ FASE 2 — Validación UX
+   2.1. Probar formulario nocturno con empleado real
+   2.2. Ajustar según feedback
 
 ⏳ FASE 4 — Dashboard avanzado
-   4.1. Reportes con prorrateo
+   4.1. Reportes con prorrateo (vistas SQL calculadas)
    4.2. Alertas de cierre no cuadrado
-   4.3. Editor de catálogos y reglas
+   4.3. Editor de catálogos y reglas (vista admin)
    4.4. Módulo inventario pizza
 ```
+
+### Decisión técnica: Next.js en vez de Vite
+Cambio respecto al stack inicial. Ventajas que justifican el cambio:
+- Rutas anidadas con `app/` directory (más limpio para múltiples vistas admin)
+- Server Components → menos JS al cliente, mejor performance móvil
+- Integración nativa con Vercel (deploy + edge functions)
+- Middleware nativo para auth gating por rol
+
+### Estado de seguridad
+- ✅ `anon key` con prefijo `NEXT_PUBLIC_` (correcto, va al cliente)
+- ✅ `service_role` nunca en código ni chats
+- ✅ `.gitignore` cubre `.env*`
+- ⚠️ RLS policies aún sin definir (parte de Fase 1.2)
+
+### Decisiones para la migración SQL (Fase 1.2)
+- **Datos de prueba**: SÍ, incluir 5-7 cierres ficticios de días pasados para que el dashboard admin tenga datos visibles desde el primer login. Marcarlos con flag o nota para borrarlos fácilmente cuando empiece operación real.
+- **Usuarios iniciales**: NINGUNO creado aún. La migración debe incluir instrucciones para:
+  1. Crear admin manualmente desde Supabase Dashboard → Authentication → Users
+  2. Asignarle rol `admin` insertando fila en `profiles`
+  3. Mismo proceso para empleado (después del admin)
 
 ---
 
