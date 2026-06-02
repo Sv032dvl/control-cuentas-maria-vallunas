@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import type { NavItem } from "./nav-items";
+import { navFor } from "./nav-items";
 
-type Props = { items: NavItem[] };
+type Props = { role: "admin" | "empleado" };
 
-export function SideNav({ items }: Props) {
+export function SideNav({ role }: Props) {
   const pathname = usePathname();
+  // Los iconos se resuelven AQUÍ en el cliente, no en el Server Component ✅
+  const items = navFor(role);
 
   return (
     <aside
