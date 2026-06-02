@@ -1,6 +1,7 @@
 "use client";
 
 import { useTheme } from "next-themes";
+import { useRouter } from "next/navigation";
 import { LogOut, Moon, Sun, User } from "lucide-react";
 import {
   DropdownMenu,
@@ -12,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { signOutAction } from "@/features/auth/actions";
+import { createClient } from "@/lib/supabase/client";
 
 type Props = {
   nombre: string;
@@ -30,7 +31,15 @@ function initials(nombre: string) {
 
 export function Topbar({ nombre, role }: Props) {
   const { theme, setTheme } = useTheme();
+  const router = useRouter();
   const dark = theme === "dark";
+
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -80,18 +89,12 @@ export function Topbar({ nombre, role }: Props) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <form action={signOutAction}>
-                <DropdownMenuItem
-                  render={
-                    <button
-                      type="submit"
-                      className="w-full cursor-pointer text-destructive focus:text-destructive"
-                    />
-                  }
-                >
-                  <LogOut className="size-4" /> Cerrar sesión
-                </DropdownMenuItem>
-              </form>
+              <DropdownMenuItem
+                onClick={handleSignOut}
+                className="cursor-pointer text-destructive focus:text-destructive"
+              >
+                <LogOut className="size-4" /> Cerrar sesión
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
