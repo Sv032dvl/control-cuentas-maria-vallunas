@@ -33,11 +33,13 @@ export async function loadCuadreUltimos(dias = 14): Promise<CuadreRow[]> {
   desde.setDate(desde.getDate() - dias);
   const desdeISO = desde.toISOString().slice(0, 10);
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("v_cuadre_diario")
     .select("*")
     .gte("fecha", desdeISO)
     .order("fecha", { ascending: false });
+
+  if (error) console.error("[loadCuadreUltimos]", error);
 
   return (data ?? []).map((r) => ({
     id: r.id ?? "",
@@ -57,11 +59,12 @@ export async function loadCuadreUltimos(dias = 14): Promise<CuadreRow[]> {
 
 export async function loadCuadreHoy(): Promise<CuadreRow | null> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("v_cuadre_diario")
     .select("*")
     .eq("fecha", todayISO())
     .maybeSingle();
+  if (error) console.error("[loadCuadreHoy]", error);
   if (!data) return null;
   return {
     id: data.id ?? "",
@@ -81,10 +84,11 @@ export async function loadCuadreHoy(): Promise<CuadreRow | null> {
 
 export async function loadAlertas(limit = 10): Promise<AlertaRow[]> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("v_alertas_admin")
     .select("*")
     .limit(limit);
+  if (error) console.error("[loadAlertas]", error);
   return (data ?? []).map((r) => ({
     cierre_id: r.cierre_id ?? "",
     fecha: r.fecha ?? "",

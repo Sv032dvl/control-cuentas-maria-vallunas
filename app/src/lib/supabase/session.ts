@@ -22,16 +22,22 @@ export async function requireSession() {
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
     .maybeSingle();
 
+  if (profileError) {
+    // Error real de BD (permiso, conexión, etc.) — log y manda a login limpio.
+    console.error("[requireSession] error cargando profile:", profileError);
+    redirect("/login?error=profile_load");
+  }
+
   if (!profile) {
     // Sesión válida pero sin profile → fuerza logout para limpiar.
     await supabase.auth.signOut();
-    redirect("/login");
+    redirect("/login?error=no_profile");
   }
 
   return { supabase, user, profile };
