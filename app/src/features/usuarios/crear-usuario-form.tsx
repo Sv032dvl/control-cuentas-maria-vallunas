@@ -1,18 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +19,10 @@ import { crearUsuarioAction, type UsuarioActionState } from "./actions";
 import { toast } from "sonner";
 
 export function CrearUsuarioForm() {
+  const [open, setOpen] = useState(false);
+  // rol en estado local + hidden input → FormData lo lee correctamente
+  const [role, setRole] = useState<"empleado" | "admin">("empleado");
+
   const [state, formAction, pending] = useActionState<
     UsuarioActionState | undefined,
     FormData
@@ -33,16 +30,26 @@ export function CrearUsuarioForm() {
 
   const formRef = useRef<HTMLFormElement>(null);
 
-  // Toast en éxito y reset del form
+  // Cerrar diálogo + toast en éxito
   useEffect(() => {
     if (state?.success) {
       toast.success(state.message ?? "Usuario creado");
-      formRef.current?.reset();
+      setOpen(false);
+      setRole("empleado");
     }
   }, [state]);
 
+  // Resetear form cuando el diálogo se abre de nuevo
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (next) {
+      formRef.current?.reset();
+      setRole("empleado");
+    }
+  }
+
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         render={
           <Button size="sm">
@@ -61,64 +68,87 @@ export function CrearUsuarioForm() {
         </DialogHeader>
 
         <form ref={formRef} action={formAction} className="space-y-4 mt-2">
+
           {/* Nombre */}
           <div className="space-y-1.5">
-            <Label htmlFor="nombre">Nombre completo</Label>
+            <Label htmlFor="c-nombre">Nombre completo</Label>
             <Input
-              id="nombre"
+              id="c-nombre"
               name="nombre"
               placeholder="Ej. María García"
               required
               minLength={2}
               maxLength={60}
               disabled={pending}
+              autoComplete="off"
             />
           </div>
 
           {/* Email */}
           <div className="space-y-1.5">
-            <Label htmlFor="email">Correo electrónico</Label>
+            <Label htmlFor="c-email">Correo electrónico</Label>
             <Input
-              id="email"
+              id="c-email"
               name="email"
               type="email"
               inputMode="email"
               placeholder="maria@gmail.com"
               required
               disabled={pending}
+              autoComplete="off"
             />
           </div>
 
           {/* Contraseña */}
           <div className="space-y-1.5">
-            <Label htmlFor="password">Contraseña</Label>
+            <Label htmlFor="c-password">Contraseña</Label>
             <Input
-              id="password"
+              id="c-password"
               name="password"
               type="password"
               placeholder="Mínimo 6 caracteres"
               required
               minLength={6}
               disabled={pending}
+              autoComplete="new-password"
             />
           </div>
 
-          {/* Rol */}
+          {/* Rol — botones nativos + hidden input para FormData */}
           <div className="space-y-1.5">
-            <Label htmlFor="role">Rol</Label>
-            <Select name="role" defaultValue="empleado" disabled={pending}>
-              <SelectTrigger id="role">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="empleado">
-                  Empleado — registra cierres nocturnos
-                </SelectItem>
-                <SelectItem value="admin">
-                  Admin — acceso total al dashboard
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <Label>Rol</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setRole("empleado")}
+                disabled={pending}
+                className={[
+                  "rounded-lg border-2 px-3 py-2.5 text-sm font-medium text-left transition-colors",
+                  role === "empleado"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary/50",
+                ].join(" ")}
+              >
+                <span className="block font-semibold">Empleado</span>
+                <span className="text-xs opacity-70">Registra cierres</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole("admin")}
+                disabled={pending}
+                className={[
+                  "rounded-lg border-2 px-3 py-2.5 text-sm font-medium text-left transition-colors",
+                  role === "admin"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary/50",
+                ].join(" ")}
+              >
+                <span className="block font-semibold">Admin</span>
+                <span className="text-xs opacity-70">Acceso total</span>
+              </button>
+            </div>
+            {/* Hidden input que FormData sí puede leer */}
+            <input type="hidden" name="role" value={role} />
           </div>
 
           {/* Error */}
@@ -133,7 +163,7 @@ export function CrearUsuarioForm() {
             {pending ? (
               <>
                 <Loader2 className="size-4 mr-2 animate-spin" />
-                Creando…
+                Creando usuario…
               </>
             ) : (
               "Crear usuario"

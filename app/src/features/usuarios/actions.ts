@@ -49,7 +49,14 @@ export async function crearUsuarioAction(
   }
 
   const { nombre, email, password, role } = parsed.data;
-  const admin = createAdminClient();
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch (e) {
+    console.error("[crearUsuario] createAdminClient falló:", e);
+    return { error: "Error de configuración del servidor. Contacta al administrador." };
+  }
 
   // 1. Crear usuario en Auth con email ya confirmado
   const { data, error: authError } = await admin.auth.admin.createUser({
@@ -60,20 +67,31 @@ export async function crearUsuarioAction(
   });
 
   if (authError) {
-    if (authError.message.includes("already registered")) {
+    console.error("[crearUsuario] authError:", authError);
+    if (
+      authError.message.includes("already registered") ||
+      authError.message.includes("already been registered")
+    ) {
       return { error: "Ya existe un usuario con ese email" };
     }
     return { error: `Error al crear usuario: ${authError.message}` };
   }
 
-  // 2. Actualizar el profile con nombre y rol correctos
-  // (el trigger ya lo creó con defaults, aquí lo completamos)
+  if (!data?.user) {
+    return { error: "No se pudo crear el usuario, intenta de nuevo" };
+  }
+
+  // 2. Esperar brevemente a que el trigger handle_new_user cree el profile
+  await new Promise((r) => setTimeout(r, 500));
+
+  // 3. Actualizar el profile con nombre y rol correctos
   const { error: profileError } = await admin
     .from("profiles")
     .update({ nombre, role })
     .eq("id", data.user.id);
 
   if (profileError) {
+    console.error("[crearUsuario] profileError:", profileError);
     // Revertir: borrar el usuario de Auth si el profile falló
     await admin.auth.admin.deleteUser(data.user.id);
     return { error: "Error al guardar el perfil del usuario" };
