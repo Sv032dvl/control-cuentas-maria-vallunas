@@ -67,6 +67,7 @@ export default async function UsuariosPage() {
                     userId={p.id}
                     activo={p.activo}
                     nombre={p.nombre}
+                    role={p.role as "empleado" | "admin"}
                   />
                 </div>
               </li>
