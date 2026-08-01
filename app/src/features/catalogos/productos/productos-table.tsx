@@ -57,14 +57,23 @@ interface Props {
 
 export function ProductosTable({ productos, unidades }: Props) {
   const [search, setSearch] = useState("");
-  const filtered = productos.filter((p) =>
-    p.nombre.toLowerCase().includes(search.toLowerCase()),
-  );
+  const [filterUnidad, setFilterUnidad] = useState("todas");
+  const [filterEstado, setFilterEstado] = useState("todos");
+
+  const filtered = productos.filter((p) => {
+    const matchNombre = p.nombre.toLowerCase().includes(search.toLowerCase());
+    const matchUnidad = filterUnidad === "todas" || p.unidad_id === filterUnidad;
+    const matchEstado =
+      filterEstado === "todos" ||
+      (filterEstado === "activo" && p.activo) ||
+      (filterEstado === "inactivo" && !p.activo);
+    return matchNombre && matchUnidad && matchEstado;
+  });
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[180px]">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Buscar producto..."
@@ -73,6 +82,25 @@ export function ProductosTable({ productos, unidades }: Props) {
             className="pl-8"
           />
         </div>
+        <select
+          value={filterUnidad}
+          onChange={(e) => setFilterUnidad(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
+        >
+          <option value="todas">Todas las unidades</option>
+          {unidades.filter((u) => u.activo).map((u) => (
+            <option key={u.id} value={u.id}>{u.nombre}</option>
+          ))}
+        </select>
+        <select
+          value={filterEstado}
+          onChange={(e) => setFilterEstado(e.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
+        >
+          <option value="todos">Todos</option>
+          <option value="activo">Activos</option>
+          <option value="inactivo">Inactivos</option>
+        </select>
         <CrearProductoDialog unidades={unidades} />
       </div>
 
