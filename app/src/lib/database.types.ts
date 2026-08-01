@@ -303,6 +303,7 @@ export type Database = {
         Row: {
           activo: boolean
           id: string
+          loyverse_item_id: string | null
           nombre: string
           precio: number
           unidad_id: string
@@ -310,6 +311,7 @@ export type Database = {
         Insert: {
           activo?: boolean
           id?: string
+          loyverse_item_id?: string | null
           nombre: string
           precio: number
           unidad_id: string
@@ -317,6 +319,7 @@ export type Database = {
         Update: {
           activo?: boolean
           id?: string
+          loyverse_item_id?: string | null
           nombre?: string
           precio?: number
           unidad_id?: string
@@ -327,6 +330,59 @@ export type Database = {
             columns: ["unidad_id"]
             isOneToOne: false
             referencedRelation: "unidades_negocio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_loyverse_pendientes: {
+        Row: {
+          id: string
+          tipo: string
+          loyverse_item_id: string
+          nombre_loyverse: string
+          precio_loyverse: number
+          categoria_loyverse: string | null
+          nombre_actual: string | null
+          precio_actual: number | null
+          producto_id: string | null
+          estado: string
+          created_at: string
+          resuelto_at: string | null
+        }
+        Insert: {
+          id?: string
+          tipo: string
+          loyverse_item_id: string
+          nombre_loyverse: string
+          precio_loyverse?: number
+          categoria_loyverse?: string | null
+          nombre_actual?: string | null
+          precio_actual?: number | null
+          producto_id?: string | null
+          estado?: string
+          created_at?: string
+          resuelto_at?: string | null
+        }
+        Update: {
+          id?: string
+          tipo?: string
+          loyverse_item_id?: string
+          nombre_loyverse?: string
+          precio_loyverse?: number
+          categoria_loyverse?: string | null
+          nombre_actual?: string | null
+          precio_actual?: number | null
+          producto_id?: string | null
+          estado?: string
+          created_at?: string
+          resuelto_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_loyverse_pendientes_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos"
             referencedColumns: ["id"]
           },
         ]

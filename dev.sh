@@ -3,5 +3,5 @@
 # Uso: ./dev.sh
 set -e
 cd "$(dirname "$0")/app"
-source ~/.nvm/nvm.sh 2>/dev/null && nvm use 20 2>/dev/null || true
+source ~/.nvm/nvm.sh 2>/dev/null && nvm use 22 2>/dev/null || true
 npm run dev
