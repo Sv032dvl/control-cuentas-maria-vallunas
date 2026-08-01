@@ -26,6 +26,17 @@ export function QtyStepper({
 }: Props) {
   const clamp = (n: number) => Math.max(min, Math.min(max, n));
 
+  function haptic() {
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate(10);
+    }
+  }
+
+  function step(delta: number) {
+    haptic();
+    onChange(clamp(value + delta));
+  }
+
   return (
     <div
       className={cn(
@@ -38,7 +49,7 @@ export function QtyStepper({
         variant="ghost"
         size="icon"
         className="size-11 rounded-l-xl rounded-r-none"
-        onClick={() => onChange(clamp(value - 1))}
+        onClick={() => step(-1)}
         disabled={value <= min}
         aria-label="Restar"
       >
@@ -60,7 +71,7 @@ export function QtyStepper({
         variant="ghost"
         size="icon"
         className="size-11 rounded-r-xl rounded-l-none"
-        onClick={() => onChange(clamp(value + 1))}
+        onClick={() => step(1)}
         disabled={value >= max}
         aria-label="Sumar"
       >

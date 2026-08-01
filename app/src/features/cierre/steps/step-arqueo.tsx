@@ -3,6 +3,7 @@
 import { useFormContext } from "react-hook-form";
 import { Banknote } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { QtyStepper } from "../components/qty-stepper";
 import { money } from "@/lib/format";
 import type { CatalogDenominacion } from "../loaders";
@@ -37,19 +38,25 @@ export function StepArqueo({ denominaciones }: Props) {
         </p>
       </div>
 
-      <ul className="space-y-2">
+      <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {denominaciones.map((d) => {
           const qty = getCantidad(d.id);
           const sub = qty * d.valor;
+          const active = qty > 0;
           return (
             <li key={d.id}>
-              <Card className="p-3 flex items-center gap-3">
+              <Card
+                className={cn(
+                  "p-3 flex items-center gap-3 transition-colors",
+                  active && "ring-2 ring-primary/30 bg-primary/5",
+                )}
+              >
                 <div className="flex-1 min-w-0">
                   <p className="text-lg font-semibold tabular-nums">
                     {money(d.valor)}
                   </p>
-                  {qty > 0 && (
-                    <p className="text-xs text-primary tabular-nums">
+                  {active && (
+                    <p className="text-xs text-primary tabular-nums font-medium">
                       = {money(sub)}
                     </p>
                   )}
@@ -64,10 +71,12 @@ export function StepArqueo({ denominaciones }: Props) {
         })}
       </ul>
 
-      <Card className="p-3 flex items-center justify-between bg-primary text-primary-foreground">
-        <span className="font-medium">Total contado</span>
-        <span className="text-xl font-bold tabular-nums">{money(total)}</span>
-      </Card>
+      <div className="sticky bottom-20 md:bottom-4 z-10">
+        <Card className="p-3 flex items-center justify-between bg-primary text-primary-foreground border-primary">
+          <span className="font-medium">Total contado</span>
+          <span className="text-xl font-bold tabular-nums">{money(total)}</span>
+        </Card>
+      </div>
     </div>
   );
 }
