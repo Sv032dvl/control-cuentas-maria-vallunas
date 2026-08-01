@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { requireRole } from "@/lib/supabase/session";
 import { dateLong, todayISO } from "@/lib/format";
 import { CierreWizard } from "@/features/cierre/cierre-wizard";
-import { loadCatalogos, loadCierreHoy } from "@/features/cierre/loaders";
+import {
+  loadCatalogos,
+  loadCierreHoy,
+  loadVentasLoyverseHoy,
+} from "@/features/cierre/loaders";
 
 export const metadata: Metadata = {
   title: "Cierre del día",
@@ -11,9 +15,14 @@ export const metadata: Metadata = {
 export default async function CierrePage() {
   const { user } = await requireRole("empleado");
 
-  const [catalogos, existente] = await Promise.all([
+  // Los 3 loaders se ejecutan en PARALELO:
+  // - catalogos: productos, unidades, categorías, denominaciones (de Supabase)
+  // - existente: cierre borrador del día si existe (de Supabase)
+  // - loyverseData: ventas y pagos digitales del día (de Loyverse API)
+  const [catalogos, existente, loyverseData] = await Promise.all([
     loadCatalogos(),
     loadCierreHoy(user.id),
+    loadVentasLoyverseHoy(),
   ]);
 
   return (
@@ -27,7 +36,11 @@ export default async function CierrePage() {
         </h1>
       </header>
 
-      <CierreWizard catalogos={catalogos} existente={existente} />
+      <CierreWizard
+        catalogos={catalogos}
+        existente={existente}
+        loyverseData={loyverseData}
+      />
     </div>
   );
 }

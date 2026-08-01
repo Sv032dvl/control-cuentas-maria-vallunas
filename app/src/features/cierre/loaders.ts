@@ -4,6 +4,7 @@
  */
 import { createClient } from "@/lib/supabase/server";
 import { todayISO } from "@/lib/format";
+import { fetchLoyverseReceiptsByDate } from "@/lib/loyverse";
 import type { Tables } from "@/lib/database.types";
 
 export type CatalogProducto = Pick<
@@ -137,4 +138,109 @@ export async function loadCierreHoy(empleadoId: string): Promise<CierreExistente
       cantidad: Number(a.cantidad),
     })),
   };
+}
+
+// ─── Loyverse TPV data ──────────────────────────────────────────────────────
+
+export type LoyverseVenta = {
+  producto_id: string;
+  cantidad: number;
+  precio_unitario: number;
+};
+
+export type LoyverseDigital = {
+  metodo: "datafono";
+  monto: number;
+  descripcion: string;
+};
+
+export type LoyverseData = {
+  ventas: LoyverseVenta[];
+  digitales: LoyverseDigital[];
+  totalVentas: number;
+  totalDigital: number;
+} | null;
+
+/**
+ * Carga las ventas del día desde Loyverse y las cruza con productos en DB.
+ * Retorna ventas agrupadas por producto + pagos con tarjeta como ingresos digitales.
+ * Retorna null si la API falla (para no bloquear el cierre).
+ */
+export async function loadVentasLoyverseHoy(): Promise<LoyverseData> {
+  try {
+    const fecha = todayISO();
+    const supabase = await createClient();
+
+    // Cargar recibos de Loyverse y productos con loyverse_item_id en paralelo
+    const [receipts, { data: productos }] = await Promise.all([
+      fetchLoyverseReceiptsByDate(fecha),
+      supabase
+        .from("productos")
+        .select("id, loyverse_item_id, precio")
+        .not("loyverse_item_id", "is", null),
+    ]);
+
+    // Mapear loyverse_item_id → producto_id de Supabase
+    const loyverseToProducto = new Map(
+      (productos ?? []).map((p) => [p.loyverse_item_id!, { id: p.id, precio: Number(p.precio) }]),
+    );
+
+    // Agrupar line_items por item_id y sumar cantidades
+    const ventasMap = new Map<string, { cantidad: number; precio: number }>();
+    let totalDigital = 0;
+
+    for (const receipt of receipts) {
+      // Agrupar ventas por producto
+      for (const item of receipt.line_items) {
+        const existing = ventasMap.get(item.item_id);
+        if (existing) {
+          existing.cantidad += item.quantity;
+        } else {
+          ventasMap.set(item.item_id, {
+            cantidad: item.quantity,
+            precio: item.price,
+          });
+        }
+      }
+
+      // Sumar pagos con tarjeta (datafono)
+      for (const payment of receipt.payments) {
+        if (payment.type === "NONINTEGRATEDCARD") {
+          totalDigital += payment.money_amount;
+        }
+      }
+    }
+
+    // Cruzar con productos en DB
+    const ventas: LoyverseVenta[] = [];
+    for (const [loyverseItemId, data] of ventasMap) {
+      const producto = loyverseToProducto.get(loyverseItemId);
+      if (producto) {
+        ventas.push({
+          producto_id: producto.id,
+          cantidad: data.cantidad,
+          precio_unitario: data.precio,
+        });
+      }
+    }
+
+    const totalVentas = ventas.reduce(
+      (acc, v) => acc + v.cantidad * v.precio_unitario,
+      0,
+    );
+
+    const digitales: LoyverseDigital[] = [];
+    if (totalDigital > 0) {
+      digitales.push({
+        metodo: "datafono",
+        monto: totalDigital,
+        descripcion: "Pagos con tarjeta (Loyverse)",
+      });
+    }
+
+    return { ventas, digitales, totalVentas, totalDigital };
+  } catch (err) {
+    console.error("[loadVentasLoyverseHoy]", err);
+    return null;
+  }
 }

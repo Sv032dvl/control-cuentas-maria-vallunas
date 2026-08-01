@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useFormContext } from "react-hook-form";
-import { ShoppingBag } from "lucide-react";
+import { ShoppingBag, Zap } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { QtyStepper } from "../components/qty-stepper";
@@ -10,15 +10,17 @@ import { money } from "@/lib/format";
 import type {
   CatalogProducto,
   CatalogUnidad,
+  LoyverseData,
 } from "../loaders";
 import type { CierreFormValues } from "../schema";
 
 type Props = {
   productos: CatalogProducto[];
   unidades: CatalogUnidad[];
+  loyverseData: LoyverseData;
 };
 
-export function StepVentas({ productos, unidades }: Props) {
+export function StepVentas({ productos, unidades, loyverseData }: Props) {
   const { watch, setValue } = useFormContext<CierreFormValues>();
   const ventas = watch("ventas");
 
@@ -62,8 +64,18 @@ export function StepVentas({ productos, unidades }: Props) {
           <ShoppingBag className="size-5 text-primary" /> Ventas del día
         </h2>
         <p className="text-sm text-muted-foreground">
-          Anota la cantidad vendida por producto. El total se calcula solo.
+          {loyverseData
+            ? "Ventas importadas del TPV. Puedes ajustar las cantidades si es necesario."
+            : "Anota la cantidad vendida por producto. El total se calcula solo."}
         </p>
+        {loyverseData && (
+          <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30 px-3 py-2">
+            <Zap className="size-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            <p className="text-xs text-blue-700 dark:text-blue-300">
+              Importado del TPV — {loyverseData.ventas.length} producto(s), total {money(loyverseData.totalVentas)}
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="space-y-4">
