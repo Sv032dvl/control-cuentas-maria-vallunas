@@ -67,18 +67,38 @@ export function StepResumen() {
         <Row label="Arqueo (lo que contaste)" value={t.arqueo} bold />
       </Card>
 
+      {!t.cuadrado && Math.abs(t.diferencia) > 10000 && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 px-3 py-2">
+          <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700 dark:text-amber-300">
+            Diferencia inusual ({money(Math.abs(t.diferencia))}). Revisa ventas y arqueo antes de cerrar.
+          </p>
+        </div>
+      )}
+
       <div className="space-y-2">
-        <Label htmlFor="nota">Nota sobre la diferencia (opcional)</Label>
+        <Label htmlFor="nota">
+          Nota sobre la diferencia {!t.cuadrado && <span className="text-destructive">*</span>}
+        </Label>
         <Textarea
           id="nota"
           value={all.nota_diferencia ?? ""}
           onChange={(e) =>
             setValue("nota_diferencia", e.target.value, { shouldDirty: true })
           }
-          placeholder="ej. faltaron $500, devolución de cliente sin registrar..."
+          placeholder={t.cuadrado
+            ? "ej. faltaron $500, devolución de cliente sin registrar..."
+            : "Obligatorio — explica la diferencia detectada"
+          }
           maxLength={280}
           rows={3}
+          className={cn(!t.cuadrado && !(all.nota_diferencia?.trim()) && "border-destructive")}
         />
+        {!t.cuadrado && !(all.nota_diferencia?.trim()) && (
+          <p className="text-xs text-destructive">
+            Debes dejar una nota cuando hay diferencia en el cuadre.
+          </p>
+        )}
       </div>
     </div>
   );
