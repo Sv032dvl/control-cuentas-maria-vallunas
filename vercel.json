@@ -1,6 +1,0 @@
-{
-  "buildCommand": "cd app && npm install && npx next build",
-  "installCommand": "echo 'Skipping root install (handled in buildCommand)'",
-  "outputDirectory": "app/.next",
-  "framework": "nextjs"
-}
