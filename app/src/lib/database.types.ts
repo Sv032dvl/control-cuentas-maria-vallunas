@@ -214,6 +214,48 @@ export type Database = {
           },
         ]
       }
+      facturas_proveedor: {
+        Row: {
+          id: string
+          proveedor: string
+          numero_factura: string | null
+          fecha: string
+          fecha_vencimiento: string | null
+          monto: number
+          estado: string
+          metodo_pago: string | null
+          fecha_pago: string | null
+          nota: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          proveedor: string
+          numero_factura?: string | null
+          fecha: string
+          fecha_vencimiento?: string | null
+          monto: number
+          estado?: string
+          metodo_pago?: string | null
+          fecha_pago?: string | null
+          nota?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          proveedor?: string
+          numero_factura?: string | null
+          fecha?: string
+          fecha_vencimiento?: string | null
+          monto?: number
+          estado?: string
+          metodo_pago?: string | null
+          fecha_pago?: string | null
+          nota?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       ingresos_digitales: {
         Row: {
           cierre_id: string
@@ -305,6 +347,7 @@ export type Database = {
           id: string
           loyverse_item_id: string | null
           nombre: string
+          orden: number
           precio: number
           unidad_id: string
         }
@@ -313,6 +356,7 @@ export type Database = {
           id?: string
           loyverse_item_id?: string | null
           nombre: string
+          orden?: number
           precio: number
           unidad_id: string
         }
@@ -321,6 +365,7 @@ export type Database = {
           id?: string
           loyverse_item_id?: string | null
           nombre?: string
+          orden?: number
           precio?: number
           unidad_id?: string
         }
