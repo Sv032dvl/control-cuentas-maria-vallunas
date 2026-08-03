@@ -9,7 +9,7 @@ import type { Tables } from "@/lib/database.types";
 
 export type CatalogProducto = Pick<
   Tables<"productos">,
-  "id" | "nombre" | "precio" | "unidad_id"
+  "id" | "nombre" | "precio" | "unidad_id" | "orden"
 >;
 export type CatalogUnidad = Pick<Tables<"unidades_negocio">, "id" | "nombre">;
 export type CatalogCategoria = Pick<Tables<"categorias_egreso">, "id" | "nombre">;
@@ -51,8 +51,9 @@ export async function loadCatalogos(): Promise<Catalogos> {
   const [productos, unidades, categorias, denominaciones] = await Promise.all([
     supabase
       .from("productos")
-      .select("id, nombre, precio, unidad_id")
+      .select("id, nombre, precio, unidad_id, orden")
       .eq("activo", true)
+      .order("orden")
       .order("nombre"),
     supabase
       .from("unidades_negocio")
@@ -79,9 +80,8 @@ export async function loadCatalogos(): Promise<Catalogos> {
   };
 }
 
-export async function loadCierreHoy(empleadoId: string): Promise<CierreExistente> {
+export async function loadCierreByFecha(empleadoId: string, fecha: string): Promise<CierreExistente> {
   const supabase = await createClient();
-  const fecha = todayISO();
 
   const { data: cierre } = await supabase
     .from("cierres_diarios")
@@ -166,9 +166,8 @@ export type LoyverseData = {
  * Retorna ventas agrupadas por producto + pagos con tarjeta como ingresos digitales.
  * Retorna null si la API falla (para no bloquear el cierre).
  */
-export async function loadVentasLoyverseHoy(): Promise<LoyverseData> {
+export async function loadVentasLoyverse(fecha: string): Promise<LoyverseData> {
   try {
-    const fecha = todayISO();
     const supabase = await createClient();
 
     // Cargar recibos de Loyverse y productos con loyverse_item_id en paralelo

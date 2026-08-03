@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { todayISO } from "@/lib/format";
 import { cierreFullSchema, calcTotales, type CierreFormValues } from "./schema";
+import { loadVentasLoyverse, type LoyverseData } from "./loaders";
 
 export type GuardarResult =
   | { ok: true; cierreId: string; cuadrado: boolean; diferencia: number }
@@ -20,6 +21,7 @@ export type GuardarResult =
 export async function guardarCierre(
   raw: CierreFormValues,
   cerrar: boolean,
+  fecha?: string,
 ): Promise<GuardarResult> {
   const parsed = cierreFullSchema.safeParse(raw);
   if (!parsed.success) {
@@ -33,7 +35,7 @@ export async function guardarCierre(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Sesión no válida" };
 
-  const fecha = todayISO();
+  const fechaFinal = fecha ?? todayISO();
   const t = calcTotales(data);
 
   // 1. Upsert cierre padre
@@ -41,7 +43,7 @@ export async function guardarCierre(
     .from("cierres_diarios")
     .upsert(
       {
-        fecha,
+        fecha: fechaFinal,
         empleado_id: user.id,
         base_inicial: data.base_inicial,
         ventas_tpv_total: t.ventasTpv,
@@ -139,4 +141,31 @@ export async function guardarCierre(
     cuadrado: t.cuadrado,
     diferencia: t.diferencia,
   };
+}
+
+/**
+ * Importa ventas y pagos digitales desde Loyverse para una fecha dada.
+ * Usada on-demand desde el step de ventas (botón Importar / Actualizar).
+ */
+export async function importarVentasLoyverse(
+  fecha: string,
+): Promise<LoyverseData> {
+  return loadVentasLoyverse(fecha);
+}
+
+export async function reorderProductosAction(
+  orden: { id: string; orden: number }[],
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = await createClient();
+
+  for (const item of orden) {
+    const { error } = await supabase
+      .from("productos")
+      .update({ orden: item.orden })
+      .eq("id", item.id);
+    if (error) return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/cierre");
+  return { ok: true };
 }

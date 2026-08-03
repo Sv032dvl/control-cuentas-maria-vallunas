@@ -1,45 +1,64 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/supabase/session";
-import { dateLong, todayISO } from "@/lib/format";
+import { todayISO } from "@/lib/format";
 import { CierreWizard } from "@/features/cierre/cierre-wizard";
+import { DateSelector } from "@/features/cierre/components/date-selector";
 import {
   loadCatalogos,
-  loadCierreHoy,
-  loadVentasLoyverseHoy,
+  loadCierreByFecha,
+  loadVentasLoyverse,
 } from "@/features/cierre/loaders";
 
 export const metadata: Metadata = {
   title: "Cierre del día",
 };
 
-export default async function CierrePage() {
-  const { user } = await requireRole("empleado");
+/** Máximo 2 días atrás permitidos. */
+const MAX_DAYS_BACK = 2;
 
-  // Los 3 loaders se ejecutan en PARALELO:
-  // - catalogos: productos, unidades, categorías, denominaciones (de Supabase)
-  // - existente: cierre borrador del día si existe (de Supabase)
-  // - loyverseData: ventas y pagos digitales del día (de Loyverse API)
+function isValidFecha(fecha: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return false;
+  const d = new Date(`${fecha}T00:00:00`);
+  return !isNaN(d.getTime());
+}
+
+function isWithinRange(fecha: string): boolean {
+  const hoy = new Date(`${todayISO()}T00:00:00`);
+  const target = new Date(`${fecha}T00:00:00`);
+  const diff = Math.round((hoy.getTime() - target.getTime()) / 86400000);
+  return diff >= 0 && diff <= MAX_DAYS_BACK;
+}
+
+type Props = {
+  searchParams: Promise<{ fecha?: string }>;
+};
+
+export default async function CierrePage({ searchParams }: Props) {
+  const { user } = await requireRole("empleado");
+  const params = await searchParams;
+  const fecha = params.fecha ?? todayISO();
+
+  // Validar fecha y rango
+  if (params.fecha && (!isValidFecha(fecha) || !isWithinRange(fecha))) {
+    redirect("/cierre");
+  }
+
   const [catalogos, existente, loyverseData] = await Promise.all([
     loadCatalogos(),
-    loadCierreHoy(user.id),
-    loadVentasLoyverseHoy(),
+    loadCierreByFecha(user.id, fecha),
+    loadVentasLoyverse(fecha),
   ]);
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <p className="text-xs text-muted-foreground uppercase tracking-wide">
-          Cierre del día
-        </p>
-        <h1 className="text-2xl font-semibold capitalize">
-          {dateLong(todayISO())}
-        </h1>
-      </header>
+      <DateSelector fecha={fecha} />
 
       <CierreWizard
         catalogos={catalogos}
         existente={existente}
         loyverseData={loyverseData}
+        fecha={fecha}
       />
     </div>
   );

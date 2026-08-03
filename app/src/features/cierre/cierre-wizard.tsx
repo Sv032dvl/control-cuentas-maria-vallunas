@@ -45,9 +45,10 @@ type Props = {
   catalogos: Catalogos;
   existente: CierreExistente;
   loyverseData: LoyverseData;
+  fecha: string;
 };
 
-export function CierreWizard({ catalogos, existente, loyverseData }: Props) {
+export function CierreWizard({ catalogos, existente, loyverseData, fecha }: Props) {
   const [step, setStep] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [showConfirm, setShowConfirm] = useState(false);
@@ -105,7 +106,7 @@ export function CierreWizard({ catalogos, existente, loyverseData }: Props) {
     }
     startTransition(async () => {
       const values = form.getValues();
-      const res = await guardarCierre(values, cerrar);
+      const res = await guardarCierre(values, cerrar, fecha);
       if (!res.ok) {
         toast.error(res.error);
         return;
@@ -142,6 +143,7 @@ export function CierreWizard({ catalogos, existente, loyverseData }: Props) {
               productos={catalogos.productos}
               unidades={catalogos.unidades}
               loyverseData={loyverseData}
+              fecha={fecha}
             />
           )}
           {step === 2 && (
@@ -301,10 +303,11 @@ function buildDefaults(
     };
   }
 
-  // Cierre nuevo: pre-llenar con Loyverse si hay datos disponibles.
+  // Cierre nuevo: ventas vacías (el empleado importa del TPV manualmente).
+  // Digitales sí se pre-llenan (datafono).
   return {
     base_inicial: 0,
-    ventas: loyverseData?.ventas ?? [],
+    ventas: [],
     digitales: loyverseData?.digitales.map((d) => ({
       metodo: d.metodo,
       monto: d.monto,
