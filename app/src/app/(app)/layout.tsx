@@ -11,17 +11,28 @@ export default async function AppLayout({
   const { profile } = await requireSession();
   // Solo pasamos strings al cliente — los iconos los resuelve cada Client Component
   const role = (profile.role as "admin" | "empleado") ?? "empleado";
+  const isAdmin = role === "admin";
 
+  // Empleado: layout limpio sin sidebar ni bottom nav (usa tablet, pantalla completa)
+  // Admin: layout con sidebar (desktop) y bottom nav (mobile)
   return (
     <>
       <Topbar nombre={profile.nombre} role={role} />
-      <div className="flex flex-1 w-full mx-auto max-w-5xl">
-        <SideNav role={role} />
-        <main className="flex-1 min-w-0 px-4 py-6 md:px-8 md:py-8 pb-24 md:pb-12">
+      {isAdmin ? (
+        <>
+          <div className="flex flex-1 w-full mx-auto max-w-5xl">
+            <SideNav role={role} />
+            <main className="flex-1 min-w-0 px-4 py-6 md:px-8 md:py-8 pb-24 md:pb-12">
+              {children}
+            </main>
+          </div>
+          <BottomNav role={role} />
+        </>
+      ) : (
+        <main className="flex-1 w-full mx-auto max-w-3xl px-4 py-5 md:px-6 md:py-6">
           {children}
         </main>
-      </div>
-      <BottomNav role={role} />
+      )}
     </>
   );
 }

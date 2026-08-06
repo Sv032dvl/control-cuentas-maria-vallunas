@@ -209,7 +209,7 @@ export function CierreWizard({ catalogos, existente, loyverseData, pizzaExistent
         </div>
 
         {/* Footer fijo con acciones */}
-        <div className="sticky bottom-16 md:bottom-0 z-20 -mx-4 md:-mx-8 px-4 md:px-8 py-3 glass-panel-lg rounded-t-2xl border-t-0">
+        <div className="sticky bottom-0 z-20 -mx-4 md:-mx-6 px-4 md:px-6 py-3 glass-panel-lg rounded-t-2xl border-t-0">
           {!cerrado && (
             <div className="mb-1 flex justify-end">
               <SaveStatusIndicator status={autoSave.status} lastSavedAt={autoSave.lastSavedAt} />
