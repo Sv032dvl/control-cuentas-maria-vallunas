@@ -106,7 +106,7 @@ No existe super_admin ni otros roles.
 |---------|---------|-----|
 | Browser | `lib/supabase/client.ts` | Client Components (login, logout) |
 | Server | `lib/supabase/server.ts` | Server Components, Server Actions |
-| Admin | `lib/supabase/admin.ts` | Gestión de usuarios (service_role key) |
+| Admin | `lib/supabase/admin.ts` | Gestión de usuarios, Server Actions de cierre (service_role key, bypasa RLS) |
 
 ## Base de datos
 
@@ -116,7 +116,7 @@ No existe super_admin ni otros roles.
 - `id` (uuid, FK a auth.users), `nombre`, `role` ('admin'|'empleado'), `activo` (boolean)
 
 **`cierres_diarios`** — Cierre de caja por día/empleado
-- `id`, `fecha`, `empleado_id`, `base_inicial`, `base_billetes`, `base_monedas`, `base_editado`, `ventas_tpv_total`, `efectivo_contado`, `ingresos_digitales_total`, `efectivo_esperado`, `diferencia`, `cuadrado`, `nota_diferencia`, `estado` ('abierto'|'cerrado'), `created_at`, `updated_at`
+- `id`, `fecha`, `empleado_id`, `base_inicial`, `base_billetes`, `base_monedas`, `base_editado`, `ventas_tpv_total`, `efectivo_contado`, `ingresos_digitales_total`, `arqueo_monedas`, `efectivo_esperado`, `diferencia`, `cuadrado`, `nota_diferencia`, `estado` ('abierto'|'cerrado'), `created_at`, `updated_at`
 - Constraint: un cierre por empleado por día
 - `base_billetes` + `base_monedas` = `base_inicial` (desglose de la base)
 - `base_editado`: true si el empleado modificó la base tras confirmarla (visible al admin)
@@ -210,10 +210,10 @@ features/cierre/
 └── steps/
     ├── step-base.tsx          ← Paso 1: Base inicial (billetes + monedas con confirmación)
     ├── step-pizza.tsx         ← Paso 2: Inventario pizza (ruedas, porciones, producción)
-    ├── step-ventas.tsx        ← Paso 3: Ventas (import Loyverse + DnD + filtros) — MÁS COMPLEJO
-    ├── step-digitales.tsx     ← Paso 4: Pagos digitales (useFieldArray)
-    ├── step-egresos.tsx       ← Paso 5: Gastos (useFieldArray)
-    ├── step-arqueo.tsx        ← Paso 6: Conteo de billetes por denominación
+    ├── step-egresos.tsx       ← Paso 3: Gastos (useFieldArray)
+    ├── step-ventas.tsx        ← Paso 4: Ventas (tabla spreadsheet + import Loyverse + filtros)
+    ├── step-digitales.tsx     ← Paso 5: Pagos digitales (useFieldArray)
+    ├── step-arqueo.tsx        ← Paso 6: Conteo de billetes + monedas
     └── step-resumen.tsx       ← Paso 7: Resumen, cuadre y nota si descuadrado
 ```
 
@@ -225,7 +225,7 @@ lib/hooks/
 
 ### Flujo general
 
-7 pasos: **Base inicial → Pizza → Ventas → Digitales → Egresos → Arqueo → Resumen**
+7 pasos: **Base inicial → Pizza → Egresos → Ventas → Digitales → Arqueo → Resumen**
 
 - Se puede guardar borrador en cualquier paso (estado = `'abierto'`)
 - "Cerrar día" en el último paso (estado = `'cerrado'`, no editable después)
@@ -249,7 +249,7 @@ lib/hooks/
 **Lógica clave**:
 - `buildDefaults()`: prioridad → draft existente > datos Loyverse > vacío
 - `calcTotales()` se ejecuta en cada cambio (cálculos en tiempo real)
-- Validación por paso solo en pasos 0, 3 y 4 (los que tienen campos validables)
+- Validación por paso solo en pasos 0, 2 y 4 (base, egresos, digitales)
 - Footer sticky muestra diferencia en vivo (verde si cuadra, ámbar/rojo si no)
 
 ### Detalle por paso
@@ -258,20 +258,20 @@ lib/hooks/
 |------|-----------|-------------|-------------|
 | 1 | `step-base.tsx` | Dos inputs (Billetes + Monedas) con auto-suma, alerta de confirmación, tracking de edición (`base_editado`). Admin ve si fue editada | Baja |
 | 2 | `step-pizza.tsx` | Inventario de pizza: 3 secciones (Apertura, Producción, Cierre). QtyStepper para ruedas y porciones. Footer sticky con disponible/restante/consumidas. Nota opcional | Baja |
-| 3 | `step-ventas.tsx` | Grid de productos filtrable por unidad (pills de categoría). Import de Loyverse. Drag-n-drop para reordenar. Bottom sheet para editar cantidades. Total sticky en footer | **Alta** (398 líneas) |
-| 4 | `step-digitales.tsx` | `useFieldArray` para Nequi/Transferencia/Datáfono. Pre-llenado con datáfono de Loyverse. Add/remove dinámico | Media |
-| 5 | `step-egresos.tsx` | `useFieldArray` para gastos con concepto, categoría, unidad, monto y método de pago. Dos totales: efectivo y transferencia | Media |
-| 6 | `step-arqueo.tsx` | Grid de denominaciones con `QtyStepper` por cada una. Subtotal por fila. Total contado en footer sticky | Baja |
+| 3 | `step-egresos.tsx` | `useFieldArray` para gastos con concepto, categoría, unidad, monto y método de pago. Dos totales: efectivo y transferencia | Media |
+| 4 | `step-ventas.tsx` | Tabla spreadsheet filtrable por unidad (pills de categoría). Import de Loyverse. Bottom sheet para editar cantidades. Total sticky en footer | Media |
+| 5 | `step-digitales.tsx` | `useFieldArray` para Nequi/Transferencia/Datáfono. Pre-llenado con datáfono de Loyverse. Add/remove dinámico | Media |
+| 6 | `step-arqueo.tsx` | Grid de denominaciones con `QtyStepper` por cada una + MoneyInput para monedas. Subtotal por fila. Total contado (billetes + monedas) en footer sticky | Baja |
 | 7 | `step-resumen.tsx` | Tarjeta de cuadre (verde/rojo). Desglose: Base + Ventas - Digital - Egresos = Esperado. Alerta si \|diferencia\| > $10,000. Nota obligatoria si descuadrado (max 280 chars) | Baja |
 
-### Step 2 (Ventas) — detalles adicionales
+### Step 4 (Ventas) — detalles adicionales
 
-Es el paso más complejo del wizard:
+- **Tabla spreadsheet**: desktop muestra tabla con columnas Artículo|P.Unit|Cantidad|Total|✕ (table-fixed)
+- **Mobile**: rows compactos con nombre, precio × qty = total, tap abre QtySheet
 - **Filtros por categoría**: pills de unidad de negocio + "Venta" (solo productos con qty > 0)
 - **Import Loyverse**: botón que llama `importarVentasLoyverse(fecha)` y llena el formulario
-- **Drag-n-drop**: modo toggle con `@dnd-kit/core` + `@dnd-kit/sortable`, solo dentro de una categoría, guarda orden en DB inmediatamente
 - **Bottom sheet**: tap en producto abre `QtySheet` con `QtyStepper`
-- **Estado local**: `imported`, `selectedUnidad`, `sheetProduct`, `reorderMode`, `localProductos`
+- **Estado local**: `imported`, `selectedUnidad`, `sheetProduct`
 
 ### Flujo de datos
 
@@ -297,8 +297,8 @@ calcTotales() en cada cambio (cálculo en vivo)
 
 ### Server Actions (`actions.ts`)
 
-- **`guardarCierre(raw, cerrar, fecha?)`**: valida con Zod (schema estricto) → upsert `cierres_diarios` → delete hijos → insert hijos (solo rows con qty/monto > 0) → upsert `inventario_pizza` (con cálculo de vendidas TPV) → revalidate `/cierre` y `/dashboard`
-- **`guardarCierreDraft(raw, fecha)`**: valida con `cierreDraftSchema` (relajado) → upsert como `estado: 'abierto'` → delete/insert hijos (filtra incompletos) → upsert `inventario_pizza` (sin vendidas) → **NO revalidate** (evita re-render durante auto-save) → retorna `{ ok, cierreId, savedAt }`
+- **`guardarCierre(raw, cerrar, fecha?)`**: auth vía `createClient()` + DB vía `createAdminClient()` (bypasa RLS). Valida con Zod (schema estricto) → upsert `cierres_diarios` → delete hijos → insert hijos (solo rows con qty/monto > 0) → upsert `inventario_pizza` (con cálculo de vendidas TPV) → revalidate `/cierre` y `/dashboard`
+- **`guardarCierreDraft(raw, fecha)`**: misma estrategia auth+admin. Valida con `cierreDraftSchema` (relajado) → upsert como `estado: 'abierto'` → delete/insert hijos (filtra incompletos) → upsert `inventario_pizza` (sin vendidas) → **NO revalidate** (evita re-render durante auto-save) → retorna `{ ok, cierreId, savedAt }`
 - **`importarVentasLoyverse(fecha)`**: llama `loadVentasLoyverse()` para importar bajo demanda
 - **`reorderProductosAction(orden[])`**: actualiza campo `orden` en tabla `productos`
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { todayISO } from "@/lib/format";
 import { cierreFullSchema, cierreDraftSchema, calcTotales, calcPizza, PORCIONES_POR_RUEDA, type CierreFormValues } from "./schema";
 import { loadVentasLoyverse, type LoyverseData } from "./loaders";
@@ -29,11 +30,15 @@ export async function guardarCierre(
   }
   const data = parsed.data;
 
-  const supabase = await createClient();
+  // Auth check con cliente normal (respeta RLS para verificar sesión)
+  const authClient = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await authClient.auth.getUser();
   if (!user) return { ok: false, error: "Sesión no válida" };
+
+  // Admin client para operaciones DB (bypasa RLS)
+  const supabase = createAdminClient();
 
   const fechaFinal = fecha ?? todayISO();
   const t = calcTotales(data);
@@ -205,11 +210,15 @@ export async function guardarCierreDraft(
   }
   const data = parsed.data;
 
-  const supabase = await createClient();
+  // Auth check con cliente normal
+  const authClient = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await authClient.auth.getUser();
   if (!user) return { ok: false, error: "Sesión no válida" };
+
+  // Admin client para operaciones DB (bypasa RLS)
+  const supabase = createAdminClient();
 
   // Verificar que no esté cerrado
   const { data: existing } = await supabase
@@ -358,7 +367,7 @@ export async function importarVentasLoyverse(
 export async function reorderProductosAction(
   orden: { id: string; orden: number }[],
 ): Promise<{ ok: boolean; error?: string }> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   for (const item of orden) {
     const { error } = await supabase

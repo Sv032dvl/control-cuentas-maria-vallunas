@@ -40,9 +40,9 @@ import type { Catalogos, CierreExistente, LoyverseData, PizzaExistente } from ".
 const STEPS: Step[] = [
   { id: "base", label: "Base inicial", short: "Base" },
   { id: "pizza", label: "Inventario pizza", short: "Pizza" },
+  { id: "egresos", label: "Egresos", short: "Egresos" },
   { id: "ventas", label: "Ventas", short: "Ventas" },
   { id: "digitales", label: "Ingresos digitales", short: "Digital" },
-  { id: "egresos", label: "Egresos", short: "Egresos" },
   { id: "arqueo", label: "Arqueo de caja", short: "Arqueo" },
   { id: "resumen", label: "Resumen y cuadre", short: "Cuadre" },
 ];
@@ -95,8 +95,8 @@ export function CierreWizard({ catalogos, existente, loyverseData, pizzaExistent
   // Campos a validar por paso (solo pasos con inputs que pueden tener errores)
   const STEP_FIELDS: Record<number, (keyof CierreFormValues)[]> = {
     0: ["base_billetes", "base_monedas"],
-    3: ["digitales"],
-    4: ["egresos"],
+    2: ["egresos"],
+    4: ["digitales"],
   };
 
   async function next() {
@@ -194,6 +194,12 @@ export function CierreWizard({ catalogos, existente, loyverseData, pizzaExistent
           {step === 0 && <StepBase />}
           {step === 1 && <StepPizza />}
           {step === 2 && (
+            <StepEgresos
+              categorias={catalogos.categorias}
+              unidades={catalogos.unidades}
+            />
+          )}
+          {step === 3 && (
             <StepVentas
               productos={catalogos.productos}
               unidades={catalogos.unidades}
@@ -201,14 +207,8 @@ export function CierreWizard({ catalogos, existente, loyverseData, pizzaExistent
               fecha={fecha}
             />
           )}
-          {step === 3 && (
-            <StepDigitales loyverseData={loyverseData} />
-          )}
           {step === 4 && (
-            <StepEgresos
-              categorias={catalogos.categorias}
-              unidades={catalogos.unidades}
-            />
+            <StepDigitales loyverseData={loyverseData} />
           )}
           {step === 5 && <StepArqueo denominaciones={catalogos.denominaciones} />}
           {step === 6 && <StepResumen />}
