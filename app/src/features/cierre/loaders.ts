@@ -48,6 +48,7 @@ export type CierreExistente = {
     metodo_pago: "efectivo" | "transferencia";
   }[];
   arqueo: { denominacion_id: string; cantidad: number }[];
+  arqueo_monedas: number;
 } | null;
 
 export async function loadCatalogos(): Promise<Catalogos> {
@@ -89,7 +90,7 @@ export async function loadCierreByFecha(empleadoId: string, fecha: string): Prom
 
   const { data: cierre } = await supabase
     .from("cierres_diarios")
-    .select("id, estado, base_inicial, base_billetes, base_monedas, base_editado, updated_at, nota_diferencia")
+    .select("id, estado, base_inicial, base_billetes, base_monedas, base_editado, arqueo_monedas, updated_at, nota_diferencia")
     .eq("fecha", fecha)
     .eq("empleado_id", empleadoId)
     .maybeSingle();
@@ -122,6 +123,7 @@ export async function loadCierreByFecha(empleadoId: string, fecha: string): Prom
     base_billetes: Number(cierre.base_billetes ?? 0),
     base_monedas: Number(cierre.base_monedas ?? 0),
     base_editado: Boolean(cierre.base_editado ?? false),
+    arqueo_monedas: Number(cierre.arqueo_monedas ?? 0),
     updated_at: cierre.updated_at ?? new Date().toISOString(),
     nota_diferencia: cierre.nota_diferencia,
     ventas: (ventas.data ?? []).map((v) => ({

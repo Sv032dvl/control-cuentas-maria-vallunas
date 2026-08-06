@@ -76,6 +76,7 @@ export const arqueoLineSchema = z.object({
 
 export const arqueoStepSchema = z.object({
   arqueo: z.array(arqueoLineSchema),
+  arqueo_monedas: money,
 });
 
 export const resumenStepSchema = z.object({
@@ -133,6 +134,7 @@ export const cierreDraftSchema = z.object({
     valor: z.number().int().positive(),
     cantidad: draftInt,
   })).default([]),
+  arqueo_monedas: draftMoney,
   nota_diferencia: z.string().max(280).optional().or(z.literal("")),
 });
 export type VentaLine = z.infer<typeof ventaLineSchema>;
@@ -154,8 +156,9 @@ export function calcTotales(v: Partial<CierreFormValues>) {
   const egresosEfectivo =
     v.egresos?.reduce((acc, e) => acc + (e.monto || 0), 0) ?? 0;
   const egresosTransfer = 0;
-  const arqueo =
+  const arqueoBilletes =
     v.arqueo?.reduce((acc, a) => acc + (a.valor || 0) * (a.cantidad || 0), 0) ?? 0;
+  const arqueo = arqueoBilletes + (v.arqueo_monedas ?? 0);
   const base = v.base_inicial ?? 0;
 
   const efectivoEsperado = base + ventasTpv - digital - egresosEfectivo;

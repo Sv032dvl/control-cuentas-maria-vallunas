@@ -87,6 +87,7 @@ export type Database = {
       }
       cierres_diarios: {
         Row: {
+          arqueo_monedas: number
           base_billetes: number
           base_editado: boolean
           base_inicial: number
@@ -106,6 +107,7 @@ export type Database = {
           ventas_tpv_total: number
         }
         Insert: {
+          arqueo_monedas?: number
           base_billetes?: number
           base_editado?: boolean
           base_inicial?: number
@@ -125,6 +127,7 @@ export type Database = {
           ventas_tpv_total?: number
         }
         Update: {
+          arqueo_monedas?: number
           base_billetes?: number
           base_editado?: boolean
           base_inicial?: number

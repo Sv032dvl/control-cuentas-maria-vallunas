@@ -34,6 +34,7 @@ import { useAutoSave } from "./hooks/use-auto-save";
 import { SaveStatusIndicator } from "./components/save-status";
 import { RestoreDraftBanner } from "./components/restore-draft-banner";
 import { money } from "@/lib/format";
+import { SummaryPanel } from "./components/summary-panel";
 import type { Catalogos, CierreExistente, LoyverseData, PizzaExistente } from "./loaders";
 
 const STEPS: Step[] = [
@@ -42,7 +43,7 @@ const STEPS: Step[] = [
   { id: "ventas", label: "Ventas", short: "Ventas" },
   { id: "digitales", label: "Ingresos digitales", short: "Digital" },
   { id: "egresos", label: "Egresos", short: "Egresos" },
-  { id: "arqueo", label: "Arqueo billetes", short: "Arqueo" },
+  { id: "arqueo", label: "Arqueo de caja", short: "Arqueo" },
   { id: "resumen", label: "Resumen y cuadre", short: "Cuadre" },
 ];
 
@@ -163,6 +164,7 @@ export function CierreWizard({ catalogos, existente, loyverseData, pizzaExistent
   return (
     <FormProvider {...form}>
       <div className="space-y-5">
+        {/* Header: ProgressSteps (ancho completo, por encima de las columnas) */}
         <div className="flex items-center justify-between gap-3">
           <ProgressSteps steps={STEPS} current={step} onJump={setStep} />
           {cerrado && (
@@ -184,6 +186,10 @@ export function CierreWizard({ catalogos, existente, loyverseData, pizzaExistent
           />
         )}
 
+        {/* Dos columnas: wizard + panel resumen */}
+        <div className="flex gap-6">
+        {/* Columna izquierda: wizard */}
+        <div className="flex-1 min-w-0 space-y-5">
         <div>
           {step === 0 && <StepBase />}
           {step === 1 && <StepPizza />}
@@ -291,6 +297,13 @@ export function CierreWizard({ catalogos, existente, loyverseData, pizzaExistent
         </div>
       </div>
 
+        {/* Columna derecha: panel resumen (solo tablet+) */}
+        <aside className="hidden md:block w-72 shrink-0">
+          <SummaryPanel totales={totales} formValues={formValues} currentStep={step} />
+        </aside>
+      </div>
+      </div>
+
       {/* Dialog de confirmación para cierre con diferencia */}
       <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
         <DialogContent>
@@ -374,6 +387,7 @@ function buildDefaults(
       })),
       egresos: existente.egresos,
       arqueo,
+      arqueo_monedas: existente.arqueo_monedas ?? 0,
       nota_diferencia: existente.nota_diferencia ?? "",
     };
   }
@@ -400,6 +414,7 @@ function buildDefaults(
     })) ?? [],
     egresos: [],
     arqueo,
+    arqueo_monedas: 0,
     nota_diferencia: "",
   };
 }

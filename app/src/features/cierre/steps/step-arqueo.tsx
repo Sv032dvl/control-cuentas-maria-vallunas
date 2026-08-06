@@ -1,10 +1,11 @@
 "use client";
 
 import { useFormContext } from "react-hook-form";
-import { Banknote } from "lucide-react";
+import { Banknote, Coins } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { QtyStepper } from "../components/qty-stepper";
+import { MoneyInput } from "../components/money-input";
 import { money } from "@/lib/format";
 import type { CatalogDenominacion } from "../loaders";
 import type { CierreFormValues } from "../schema";
@@ -25,7 +26,9 @@ export function StepArqueo({ denominaciones }: Props) {
     setValue("arqueo", next, { shouldDirty: true, shouldValidate: true });
   }
 
-  const total = arqueo.reduce((acc, a) => acc + a.valor * a.cantidad, 0);
+  const arqueoMonedas = watch("arqueo_monedas") ?? 0;
+  const totalBilletes = arqueo.reduce((acc, a) => acc + a.valor * a.cantidad, 0);
+  const total = totalBilletes + arqueoMonedas;
 
   return (
     <div className="space-y-5">
@@ -34,7 +37,7 @@ export function StepArqueo({ denominaciones }: Props) {
           <span className="flex items-center justify-center size-9 rounded-xl btn-gradient shadow-sm">
             <Banknote className="size-4 text-primary-foreground" />
           </span>
-          Arqueo de billetes
+          Arqueo de caja
         </h2>
         <p className="text-sm text-muted-foreground">
           Cuenta los billetes y monedas que quedaron en caja.
@@ -75,6 +78,24 @@ export function StepArqueo({ denominaciones }: Props) {
           );
         })}
       </ul>
+
+      {/* Monedas */}
+      <Card className="p-4 glass-panel rounded-2xl">
+        <div className="flex items-center gap-3">
+          <span className="flex items-center justify-center size-9 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <Coins className="size-4 text-amber-600" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium">Total en monedas</p>
+          </div>
+          <div className="w-36">
+            <MoneyInput
+              value={arqueoMonedas}
+              onValueChange={(v) => setValue("arqueo_monedas", v, { shouldDirty: true, shouldValidate: true })}
+            />
+          </div>
+        </div>
+      </Card>
 
       <div className="sticky bottom-20 md:bottom-4 z-10">
         <Card className="p-4 flex items-center justify-between total-card-gradient border-0 rounded-2xl">
