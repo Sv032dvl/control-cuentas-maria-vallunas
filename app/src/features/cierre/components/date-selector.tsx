@@ -44,28 +44,28 @@ export function DateSelector({ fecha }: Props) {
   }
 
   return (
-    <header className="space-y-1">
-      <p className="text-xs text-muted-foreground uppercase tracking-wide">
+    <header className="space-y-2">
+      <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-semibold">
         Cierre del día
       </p>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
-          className="size-8"
+          className="size-9 rounded-xl shadow-sm"
           onClick={() => navigate(addDays(fecha, -1))}
           disabled={!canGoBack}
           aria-label="Día anterior"
         >
           <ChevronLeft className="size-4" />
         </Button>
-        <h1 className="text-2xl font-semibold capitalize">
+        <h1 className="text-2xl md:text-3xl font-bold capitalize tracking-tight">
           {dateLong(fecha)}
         </h1>
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
-          className="size-8"
+          className="size-9 rounded-xl shadow-sm"
           onClick={() => navigate(addDays(fecha, 1))}
           disabled={!canGoForward}
           aria-label="Día siguiente"
@@ -74,9 +74,10 @@ export function DateSelector({ fecha }: Props) {
         </Button>
       </div>
       {!isHoy && (
-        <p className="text-xs text-amber-600 dark:text-amber-400">
+        <div className="inline-flex items-center gap-1.5 rounded-lg bg-amber-100/80 dark:bg-amber-950/30 px-2.5 py-1 text-xs text-amber-700 dark:text-amber-400 font-medium">
+          <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
           Estás editando un cierre de hace {daysBack} día{daysBack > 1 ? "s" : ""}
-        </p>
+        </div>
       )}
     </header>
   );

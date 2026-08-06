@@ -19,8 +19,11 @@ export function StepResumen() {
   return (
     <div className="space-y-5">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold flex items-center gap-2">
-          <Calculator className="size-5 text-primary" /> Cuadre del día
+        <h2 className="text-xl md:text-2xl font-bold flex items-center gap-2.5 tracking-tight">
+          <span className="flex items-center justify-center size-9 rounded-xl btn-gradient shadow-sm">
+            <Calculator className="size-4 text-primary-foreground" />
+          </span>
+          Cuadre del día
         </h2>
         <p className="text-sm text-muted-foreground">
           Verifica los totales y deja una nota si la diferencia no es cero.
@@ -29,10 +32,10 @@ export function StepResumen() {
 
       <Card
         className={cn(
-          "p-4 space-y-1 border-2",
+          "p-5 space-y-2 border rounded-2xl shadow-md transition-all",
           t.cuadrado
-            ? "border-success bg-success/5"
-            : "border-destructive bg-destructive/5",
+            ? "border-green-300/60 bg-green-50/70 dark:bg-green-950/30 dark:border-green-800/40 shadow-green-100/40 dark:shadow-green-900/10"
+            : "border-red-300/60 bg-red-50/70 dark:bg-red-950/30 dark:border-red-800/40 shadow-red-100/40 dark:shadow-red-900/10",
         )}
       >
         <div className="flex items-center gap-2">
@@ -45,7 +48,7 @@ export function StepResumen() {
             {t.cuadrado ? "Cuadrado" : "Descuadrado"}
           </Badge>
         </div>
-        <p className="text-3xl font-bold tabular-nums mt-1">
+        <p className="text-4xl font-extrabold tabular-nums mt-2 tracking-tight">
           {moneyDecimal(t.diferencia)}
         </p>
         <p className="text-xs text-muted-foreground">
@@ -57,18 +60,18 @@ export function StepResumen() {
         </p>
       </Card>
 
-      <Card className="p-4 space-y-2 text-sm">
+      <Card className="p-5 space-y-2.5 text-sm glass-panel rounded-2xl border-0">
         <Row label="Base inicial" value={t.base} />
         <Row label="+ Ventas TPV" value={t.ventasTpv} positive />
         <Row label="− Ingresos digitales" value={t.digital} />
-        <Row label="− Egresos en efectivo" value={t.egresosEfectivo} />
+        <Row label="− Egresos" value={t.egresosEfectivo} />
         <hr className="border-border my-1" />
         <Row label="= Efectivo esperado" value={t.efectivoEsperado} bold />
         <Row label="Arqueo (lo que contaste)" value={t.arqueo} bold />
       </Card>
 
       {!t.cuadrado && Math.abs(t.diferencia) > 10000 && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 px-3 py-2">
+        <div className="flex items-start gap-2.5 rounded-2xl border border-amber-200/70 bg-amber-50/80 dark:border-amber-800/40 dark:bg-amber-950/30 px-4 py-3 shadow-sm backdrop-blur-sm">
           <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
           <p className="text-xs text-amber-700 dark:text-amber-300">
             Diferencia inusual ({money(Math.abs(t.diferencia))}). Revisa ventas y arqueo antes de cerrar.
@@ -116,12 +119,13 @@ function Row({
   bold?: boolean;
 }) {
   return (
-    <div className={cn("flex justify-between", bold && "font-semibold")}>
-      <span className="text-muted-foreground">{label}</span>
+    <div className={cn("flex justify-between py-0.5", bold && "font-bold text-base")}>
+      <span className={cn("text-muted-foreground", bold && "text-foreground")}>{label}</span>
       <span
         className={cn(
-          "tabular-nums",
+          "tabular-nums font-medium",
           positive && "text-success",
+          bold && "text-primary",
         )}
       >
         {money(value)}

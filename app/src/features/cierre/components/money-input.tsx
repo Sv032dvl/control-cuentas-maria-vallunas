@@ -30,13 +30,14 @@ export function MoneyInput({
   return (
     <div
       className={cn(
-        "flex items-center gap-1 rounded-lg border bg-background transition-colors",
-        "focus-within:ring-2 focus-within:ring-ring focus-within:border-ring",
-        size === "lg" ? "h-14 px-3 text-2xl" : "h-10 px-3 text-base",
+        "flex items-center gap-1.5 rounded-2xl border bg-background/80 backdrop-blur-sm transition-all duration-200",
+        "shadow-sm hover:shadow-md",
+        "focus-within:ring-2 focus-within:ring-primary/40 focus-within:border-primary/50 focus-within:shadow-md focus-within:shadow-primary/5",
+        size === "lg" ? "h-14 px-4 text-2xl" : "h-11 px-3 text-base",
         className,
       )}
     >
-      <span className="text-muted-foreground">$</span>
+      <span className="text-muted-foreground/70 font-medium">$</span>
       <input
         {...rest}
         inputMode="numeric"

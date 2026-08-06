@@ -18,7 +18,22 @@ const intNonNeg = z
 const intPositive = intNonNeg.refine((n) => n > 0, "Debe ser mayor a 0");
 
 export const baseStepSchema = z.object({
-  base_inicial: money,
+  base_billetes: money,
+  base_monedas: money,
+  base_inicial: money, // calculado: billetes + monedas
+  base_confirmado: z.boolean(), // UI-only, no se persiste
+  base_editado: z.boolean(), // se persiste, auditoría
+});
+
+export const PORCIONES_POR_RUEDA = 8;
+
+export const pizzaStepSchema = z.object({
+  pizza_ruedas_inicio: intNonNeg,
+  pizza_porciones_inicio: intNonNeg,
+  pizza_horneada: intNonNeg,
+  pizza_ruedas_final: intNonNeg,
+  pizza_porciones_final: intNonNeg,
+  pizza_notas: z.string().max(280).optional().or(z.literal("")),
 });
 
 export const ventaLineSchema = z.object({
@@ -68,6 +83,7 @@ export const resumenStepSchema = z.object({
 });
 
 export const cierreFullSchema = baseStepSchema
+  .merge(pizzaStepSchema)
   .merge(ventasStepSchema)
   .merge(digitalesStepSchema)
   .merge(egresosStepSchema)
@@ -75,6 +91,50 @@ export const cierreFullSchema = baseStepSchema
   .merge(resumenStepSchema);
 
 export type CierreFormValues = z.infer<typeof cierreFullSchema>;
+
+/**
+ * Schema relajado para auto-save de borradores.
+ * Acepta datos parciales — no exige cantidades positivas ni campos obligatorios en hijos.
+ */
+const draftMoney = z.number().nonnegative().default(0);
+const draftInt = z.number().int().nonnegative().default(0);
+
+export const cierreDraftSchema = z.object({
+  base_billetes: draftMoney,
+  base_monedas: draftMoney,
+  base_inicial: draftMoney,
+  base_confirmado: z.boolean().default(false),
+  base_editado: z.boolean().default(false),
+  pizza_ruedas_inicio: draftInt,
+  pizza_porciones_inicio: draftInt,
+  pizza_horneada: draftInt,
+  pizza_ruedas_final: draftInt,
+  pizza_porciones_final: draftInt,
+  pizza_notas: z.string().max(280).optional().or(z.literal("")),
+  ventas: z.array(z.object({
+    producto_id: z.string(),
+    cantidad: draftInt,
+    precio_unitario: draftMoney,
+  })).default([]),
+  digitales: z.array(z.object({
+    metodo: z.enum(["nequi", "transferencia", "datafono"]),
+    monto: draftMoney,
+    descripcion: z.string().max(140).optional().or(z.literal("")),
+  })).default([]),
+  egresos: z.array(z.object({
+    concepto: z.string().max(140).default(""),
+    categoria_id: z.string().default(""),
+    unidad_id: z.string().default(""),
+    monto: draftMoney,
+    metodo_pago: z.enum(["efectivo", "transferencia"]).default("efectivo"),
+  })).default([]),
+  arqueo: z.array(z.object({
+    denominacion_id: z.string(),
+    valor: z.number().int().positive(),
+    cantidad: draftInt,
+  })).default([]),
+  nota_diferencia: z.string().max(280).optional().or(z.literal("")),
+});
 export type VentaLine = z.infer<typeof ventaLineSchema>;
 export type DigitalLine = z.infer<typeof digitalLineSchema>;
 export type EgresoLine = z.infer<typeof egresoLineSchema>;
@@ -92,13 +152,8 @@ export function calcTotales(v: Partial<CierreFormValues>) {
   const digital =
     v.digitales?.reduce((acc, l) => acc + (l.monto || 0), 0) ?? 0;
   const egresosEfectivo =
-    v.egresos
-      ?.filter((e) => e.metodo_pago === "efectivo")
-      .reduce((acc, e) => acc + (e.monto || 0), 0) ?? 0;
-  const egresosTransfer =
-    v.egresos
-      ?.filter((e) => e.metodo_pago === "transferencia")
-      .reduce((acc, e) => acc + (e.monto || 0), 0) ?? 0;
+    v.egresos?.reduce((acc, e) => acc + (e.monto || 0), 0) ?? 0;
+  const egresosTransfer = 0;
   const arqueo =
     v.arqueo?.reduce((acc, a) => acc + (a.valor || 0) * (a.cantidad || 0), 0) ?? 0;
   const base = v.base_inicial ?? 0;
@@ -118,4 +173,19 @@ export function calcTotales(v: Partial<CierreFormValues>) {
     diferencia,
     cuadrado,
   };
+}
+
+/* ──────── Cálculo de pizza ────────
+   disponible = (ruedas_inicio × 8 + porciones_inicio) + (horneada × 8)
+   restante   = ruedas_final × 8 + porciones_final
+   consumidas = disponible - restante
+*/
+export function calcPizza(v: Partial<CierreFormValues>) {
+  const P = PORCIONES_POR_RUEDA;
+  const inicio = (v.pizza_ruedas_inicio ?? 0) * P + (v.pizza_porciones_inicio ?? 0);
+  const produccion = (v.pizza_horneada ?? 0) * P;
+  const final_ = (v.pizza_ruedas_final ?? 0) * P + (v.pizza_porciones_final ?? 0);
+  const disponible = inicio + produccion;
+  const consumidas = disponible - final_;
+  return { inicio, produccion, disponible, restante: final_, consumidas };
 }

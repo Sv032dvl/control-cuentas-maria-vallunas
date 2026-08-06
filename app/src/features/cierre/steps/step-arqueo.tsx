@@ -30,8 +30,11 @@ export function StepArqueo({ denominaciones }: Props) {
   return (
     <div className="space-y-5">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold flex items-center gap-2">
-          <Banknote className="size-5 text-primary" /> Arqueo de billetes
+        <h2 className="text-xl md:text-2xl font-bold flex items-center gap-2.5 tracking-tight">
+          <span className="flex items-center justify-center size-9 rounded-xl btn-gradient shadow-sm">
+            <Banknote className="size-4 text-primary-foreground" />
+          </span>
+          Arqueo de billetes
         </h2>
         <p className="text-sm text-muted-foreground">
           Cuenta los billetes y monedas que quedaron en caja.
@@ -47,8 +50,10 @@ export function StepArqueo({ denominaciones }: Props) {
             <li key={d.id}>
               <Card
                 className={cn(
-                  "p-3 flex items-center gap-3 transition-colors",
-                  active && "ring-2 ring-primary/30 bg-primary/5",
+                  "p-3.5 flex items-center gap-3 transition-all duration-200 rounded-2xl",
+                  active
+                    ? "ring-2 ring-primary/40 bg-primary/5 shadow-md shadow-primary/5 glass-panel border-primary/20"
+                    : "glass-panel",
                 )}
               >
                 <div className="flex-1 min-w-0">
@@ -72,7 +77,7 @@ export function StepArqueo({ denominaciones }: Props) {
       </ul>
 
       <div className="sticky bottom-20 md:bottom-4 z-10">
-        <Card className="p-3 flex items-center justify-between bg-primary text-primary-foreground border-primary">
+        <Card className="p-4 flex items-center justify-between total-card-gradient border-0 rounded-2xl">
           <span className="font-medium">Total contado</span>
           <span className="text-xl font-bold tabular-nums">{money(total)}</span>
         </Card>

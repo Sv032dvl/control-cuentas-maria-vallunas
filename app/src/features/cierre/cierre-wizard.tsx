@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, Loader2, Save, CheckCheck, TrendingUp, TrendingDown, Check } from "lucide-react";
@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ProgressSteps, type Step } from "./components/progress-steps";
 import { StepBase } from "./steps/step-base";
+import { StepPizza } from "./steps/step-pizza";
 import { StepVentas } from "./steps/step-ventas";
 import { StepDigitales } from "./steps/step-digitales";
 import { StepEgresos } from "./steps/step-egresos";
@@ -29,11 +30,15 @@ import {
   type CierreFormValues,
 } from "./schema";
 import { guardarCierre } from "./actions";
+import { useAutoSave } from "./hooks/use-auto-save";
+import { SaveStatusIndicator } from "./components/save-status";
+import { RestoreDraftBanner } from "./components/restore-draft-banner";
 import { money } from "@/lib/format";
-import type { Catalogos, CierreExistente, LoyverseData } from "./loaders";
+import type { Catalogos, CierreExistente, LoyverseData, PizzaExistente } from "./loaders";
 
 const STEPS: Step[] = [
   { id: "base", label: "Base inicial", short: "Base" },
+  { id: "pizza", label: "Inventario pizza", short: "Pizza" },
   { id: "ventas", label: "Ventas", short: "Ventas" },
   { id: "digitales", label: "Ingresos digitales", short: "Digital" },
   { id: "egresos", label: "Egresos", short: "Egresos" },
@@ -45,10 +50,12 @@ type Props = {
   catalogos: Catalogos;
   existente: CierreExistente;
   loyverseData: LoyverseData;
+  pizzaExistente: PizzaExistente;
   fecha: string;
+  userId: string;
 };
 
-export function CierreWizard({ catalogos, existente, loyverseData, fecha }: Props) {
+export function CierreWizard({ catalogos, existente, loyverseData, pizzaExistente, fecha, userId }: Props) {
   const [step, setStep] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [showConfirm, setShowConfirm] = useState(false);
@@ -58,7 +65,27 @@ export function CierreWizard({ catalogos, existente, loyverseData, fecha }: Prop
   const form = useForm<CierreFormValues>({
     resolver: zodResolver(cierreFullSchema),
     mode: "onChange",
-    defaultValues: buildDefaults(catalogos, existente, loyverseData),
+    defaultValues: buildDefaults(catalogos, existente, loyverseData, pizzaExistente),
+  });
+
+  // Resetear formulario cuando cambia la fecha (navegación entre días)
+  const prevFechaRef = useRef(fecha);
+  useEffect(() => {
+    if (prevFechaRef.current !== fecha) {
+      prevFechaRef.current = fecha;
+      form.reset(buildDefaults(catalogos, existente, loyverseData, pizzaExistente));
+      setStep(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fecha]);
+
+  const autoSave = useAutoSave({
+    form,
+    step,
+    fecha,
+    userId,
+    cerrado,
+    dbUpdatedAt: existente?.updated_at ?? null,
   });
 
   const formValues = form.watch();
@@ -66,9 +93,9 @@ export function CierreWizard({ catalogos, existente, loyverseData, fecha }: Prop
 
   // Campos a validar por paso (solo pasos con inputs que pueden tener errores)
   const STEP_FIELDS: Record<number, (keyof CierreFormValues)[]> = {
-    0: ["base_inicial"],
-    2: ["digitales"],
-    3: ["egresos"],
+    0: ["base_billetes", "base_monedas"],
+    3: ["digitales"],
+    4: ["egresos"],
   };
 
   async function next() {
@@ -77,6 +104,14 @@ export function CierreWizard({ catalogos, existente, loyverseData, fecha }: Prop
       const valid = await form.trigger(fields);
       if (!valid) {
         toast.error("Corrige los campos marcados antes de continuar.");
+        return;
+      }
+    }
+    // Paso 0: exigir confirmación de la base (solo si hay monto > 0)
+    if (step === 0) {
+      const baseTotal = (form.getValues("base_billetes") ?? 0) + (form.getValues("base_monedas") ?? 0);
+      if (baseTotal > 0 && !form.getValues("base_confirmado")) {
+        toast.error("Confirma el total de la base antes de continuar.");
         return;
       }
     }
@@ -111,6 +146,7 @@ export function CierreWizard({ catalogos, existente, loyverseData, fecha }: Prop
         toast.error(res.error);
         return;
       }
+      autoSave.notifyManualSave();
       if (cerrar) {
         toast.success(
           res.cuadrado
@@ -136,9 +172,22 @@ export function CierreWizard({ catalogos, existente, loyverseData, fecha }: Prop
           )}
         </div>
 
+        {autoSave.localDraft && !cerrado && (
+          <RestoreDraftBanner
+            draft={autoSave.localDraft}
+            stepLabels={STEPS.map((s) => s.label)}
+            onRestore={() => {
+              autoSave.restoreLocalDraft();
+              if (autoSave.localDraft) setStep(autoSave.localDraft.step);
+            }}
+            onDiscard={autoSave.discardLocalDraft}
+          />
+        )}
+
         <div>
           {step === 0 && <StepBase />}
-          {step === 1 && (
+          {step === 1 && <StepPizza />}
+          {step === 2 && (
             <StepVentas
               productos={catalogos.productos}
               unidades={catalogos.unidades}
@@ -146,30 +195,35 @@ export function CierreWizard({ catalogos, existente, loyverseData, fecha }: Prop
               fecha={fecha}
             />
           )}
-          {step === 2 && (
+          {step === 3 && (
             <StepDigitales loyverseData={loyverseData} />
           )}
-          {step === 3 && (
+          {step === 4 && (
             <StepEgresos
               categorias={catalogos.categorias}
               unidades={catalogos.unidades}
             />
           )}
-          {step === 4 && <StepArqueo denominaciones={catalogos.denominaciones} />}
-          {step === 5 && <StepResumen />}
+          {step === 5 && <StepArqueo denominaciones={catalogos.denominaciones} />}
+          {step === 6 && <StepResumen />}
         </div>
 
         {/* Footer fijo con acciones */}
-        <div className="sticky bottom-16 md:bottom-0 z-20 -mx-4 md:-mx-8 px-4 md:px-8 py-3 border-t bg-background/95 backdrop-blur">
+        <div className="sticky bottom-16 md:bottom-0 z-20 -mx-4 md:-mx-8 px-4 md:px-8 py-3 glass-panel-lg rounded-t-2xl border-t-0">
+          {!cerrado && (
+            <div className="mb-1 flex justify-end">
+              <SaveStatusIndicator status={autoSave.status} lastSavedAt={autoSave.lastSavedAt} />
+            </div>
+          )}
           {/* Indicador de diferencia en tiempo real */}
-          {(totales.arqueo > 0 || totales.ventasTpv > 0) && step < 5 && (
-            <div className={cn(
-              "mb-2 flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+          {(totales.arqueo > 0 || totales.ventasTpv > 0) && step < 6 && (
+            <div className="flex justify-center mb-2.5"><div className={cn(
+              "inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold transition-all shadow-sm",
               totales.cuadrado
-                ? "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400"
+                ? "bg-green-100/90 text-green-700 dark:bg-green-950/50 dark:text-green-400 shadow-green-200/30 dark:shadow-green-900/20"
                 : totales.diferencia > 0
-                  ? "bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
-                  : "bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400",
+                  ? "bg-amber-100/90 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 shadow-amber-200/30 dark:shadow-amber-900/20"
+                  : "bg-red-100/90 text-red-700 dark:bg-red-950/50 dark:text-red-400 shadow-red-200/30 dark:shadow-red-900/20",
             )}>
               {totales.cuadrado ? (
                 <Check className="size-3.5" />
@@ -183,7 +237,7 @@ export function CierreWizard({ catalogos, existente, loyverseData, fecha }: Prop
                   ? "Cuadrado"
                   : `Diferencia: ${money(totales.diferencia)}`}
               </span>
-            </div>
+            </div></div>
           )}
           <div className="flex items-center gap-2">
             <Button
@@ -191,7 +245,7 @@ export function CierreWizard({ catalogos, existente, loyverseData, fecha }: Prop
               variant="outline"
               onClick={back}
               disabled={step === 0 || isPending}
-              className="h-12"
+              className="h-12 rounded-xl shadow-sm"
             >
               <ArrowLeft className="size-4" /> Atrás
             </Button>
@@ -201,10 +255,10 @@ export function CierreWizard({ catalogos, existente, loyverseData, fecha }: Prop
                 <>
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     onClick={() => save(false)}
                     disabled={isPending || cerrado}
-                    className="h-12"
+                    className="h-12 rounded-xl shadow-sm"
                   >
                     {isPending ? (
                       <Loader2 className="size-4 animate-spin" />
@@ -213,7 +267,7 @@ export function CierreWizard({ catalogos, existente, loyverseData, fecha }: Prop
                     )}
                     <span className="hidden sm:inline">Guardar</span>
                   </Button>
-                  <Button type="button" onClick={() => next()} className="h-12">
+                  <Button type="button" onClick={() => next()} className="h-12 rounded-xl btn-gradient border-0 px-6 font-semibold">
                     Siguiente <ArrowRight className="size-4" />
                   </Button>
                 </>
@@ -222,7 +276,7 @@ export function CierreWizard({ catalogos, existente, loyverseData, fecha }: Prop
                   type="button"
                   onClick={handleCerrar}
                   disabled={isPending || cerrado}
-                  className="h-12 px-6"
+                  className="h-12 px-8 rounded-xl btn-gradient border-0 font-semibold text-base"
                 >
                   {isPending ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -276,6 +330,7 @@ function buildDefaults(
   catalogos: Catalogos,
   existente: CierreExistente,
   loyverseData: LoyverseData,
+  pizzaExistente: PizzaExistente,
 ): CierreFormValues {
   // Llenar arqueo con todas las denominaciones (cantidad 0 si no existe).
   const arqueoMap = new Map(
@@ -289,8 +344,28 @@ function buildDefaults(
 
   // Si hay borrador previo, usar sus datos (el empleado ya trabajó en esto).
   if (existente) {
+    // Fallback para cierres viejos sin desglose: asumir todo billetes
+    const billetes =
+      existente.base_billetes > 0 || existente.base_monedas > 0
+        ? existente.base_billetes
+        : existente.base_inicial;
+    const monedas =
+      existente.base_billetes > 0 || existente.base_monedas > 0
+        ? existente.base_monedas
+        : 0;
+
     return {
+      base_billetes: billetes,
+      base_monedas: monedas,
       base_inicial: existente.base_inicial,
+      base_confirmado: true, // ya guardado = ya confirmado
+      base_editado: existente.base_editado ?? false,
+      pizza_ruedas_inicio: pizzaExistente?.ruedas_inicio ?? 0,
+      pizza_porciones_inicio: pizzaExistente?.porciones_inicio ?? 0,
+      pizza_horneada: pizzaExistente?.horneada ?? 0,
+      pizza_ruedas_final: pizzaExistente?.ruedas_final ?? 0,
+      pizza_porciones_final: pizzaExistente?.porciones_final ?? 0,
+      pizza_notas: pizzaExistente?.notas ?? "",
       ventas: existente.ventas,
       digitales: existente.digitales.map((d) => ({
         metodo: d.metodo,
@@ -306,7 +381,17 @@ function buildDefaults(
   // Cierre nuevo: ventas vacías (el empleado importa del TPV manualmente).
   // Digitales sí se pre-llenan (datafono).
   return {
+    base_billetes: 0,
+    base_monedas: 0,
     base_inicial: 0,
+    base_confirmado: false,
+    base_editado: false,
+    pizza_ruedas_inicio: pizzaExistente?.ruedas_inicio ?? 0,
+    pizza_porciones_inicio: pizzaExistente?.porciones_inicio ?? 0,
+    pizza_horneada: pizzaExistente?.horneada ?? 0,
+    pizza_ruedas_final: pizzaExistente?.ruedas_final ?? 0,
+    pizza_porciones_final: pizzaExistente?.porciones_final ?? 0,
+    pizza_notas: pizzaExistente?.notas ?? "",
     ventas: [],
     digitales: loyverseData?.digitales.map((d) => ({
       metodo: d.metodo,

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { todayISO } from "@/lib/format";
-import { cierreFullSchema, calcTotales, type CierreFormValues } from "./schema";
+import { cierreFullSchema, cierreDraftSchema, calcTotales, calcPizza, PORCIONES_POR_RUEDA, type CierreFormValues } from "./schema";
 import { loadVentasLoyverse, type LoyverseData } from "./loaders";
 
 export type GuardarResult =
@@ -46,6 +46,9 @@ export async function guardarCierre(
         fecha: fechaFinal,
         empleado_id: user.id,
         base_inicial: data.base_inicial,
+        base_billetes: data.base_billetes,
+        base_monedas: data.base_monedas,
+        base_editado: data.base_editado,
         ventas_tpv_total: t.ventasTpv,
         ingresos_digitales_total: t.digital,
         efectivo_contado: t.arqueo,
@@ -100,7 +103,7 @@ export async function guardarCierre(
       categoria_id: e.categoria_id,
       unidad_id: e.unidad_id,
       monto: e.monto,
-      metodo_pago: e.metodo_pago,
+      metodo_pago: "efectivo" as const,
     }));
 
   const arqRows = data.arqueo
@@ -132,6 +135,43 @@ export async function guardarCierre(
     return { ok: false, error: `Error al guardar líneas: ${childErr.message}` };
   }
 
+  // 4. Upsert inventario de pizza (tabla independiente, UNIQUE por fecha)
+  const hasPizza =
+    (data.pizza_ruedas_inicio ?? 0) > 0 ||
+    (data.pizza_porciones_inicio ?? 0) > 0 ||
+    (data.pizza_horneada ?? 0) > 0 ||
+    (data.pizza_ruedas_final ?? 0) > 0 ||
+    (data.pizza_porciones_final ?? 0) > 0;
+
+  if (hasPizza) {
+    const pz = calcPizza(data);
+    // Calcular porciones vendidas de productos de pizzería desde las ventas del cierre
+    const { data: pizzaProds } = await supabase
+      .from("productos")
+      .select("id")
+      .eq("unidad_id", "75340370-d308-44ff-9cce-74bcfc0358ed"); // Pizzería
+    const pizzaIds = new Set((pizzaProds ?? []).map((p) => p.id));
+    const porcionesVendidas = data.ventas
+      .filter((v) => pizzaIds.has(v.producto_id))
+      .reduce((acc, v) => acc + v.cantidad, 0);
+
+    await supabase.from("inventario_pizza").upsert(
+      {
+        fecha: fechaFinal,
+        empleado_id: user.id,
+        ruedas_inicio: data.pizza_ruedas_inicio,
+        porciones_inicio: data.pizza_porciones_inicio,
+        horneada: data.pizza_horneada,
+        ruedas_final: data.pizza_ruedas_final,
+        porciones_final: data.pizza_porciones_final,
+        porciones_vendidas_tpv: porcionesVendidas,
+        diferencia: pz.consumidas - porcionesVendidas,
+        notas: data.pizza_notas || null,
+      },
+      { onConflict: "fecha" },
+    );
+  }
+
   revalidatePath("/cierre");
   revalidatePath("/dashboard");
 
@@ -141,6 +181,166 @@ export async function guardarCierre(
     cuadrado: t.cuadrado,
     diferencia: t.diferencia,
   };
+}
+
+// ─── Auto-save de borradores ────────────────────────────────────────────────
+
+export type DraftResult =
+  | { ok: true; cierreId: string; savedAt: string }
+  | { ok: false; error: string };
+
+/**
+ * Guarda un borrador parcial del cierre (auto-save).
+ * Usa validación relajada (cierreDraftSchema) para aceptar datos incompletos.
+ * NO llama revalidatePath para evitar re-renders durante auto-save.
+ */
+export async function guardarCierreDraft(
+  raw: unknown,
+  fecha: string,
+): Promise<DraftResult> {
+  const parsed = cierreDraftSchema.safeParse(raw);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+  const data = parsed.data;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Sesión no válida" };
+
+  // Verificar que no esté cerrado
+  const { data: existing } = await supabase
+    .from("cierres_diarios")
+    .select("id, estado")
+    .eq("fecha", fecha)
+    .eq("empleado_id", user.id)
+    .maybeSingle();
+
+  if (existing?.estado === "cerrado") {
+    return { ok: false, error: "Este cierre ya está cerrado" };
+  }
+
+  const t = calcTotales(data as Partial<CierreFormValues>);
+
+  // Upsert cierre padre
+  const { data: cierre, error: upErr } = await supabase
+    .from("cierres_diarios")
+    .upsert(
+      {
+        fecha,
+        empleado_id: user.id,
+        base_inicial: data.base_inicial,
+        base_billetes: data.base_billetes,
+        base_monedas: data.base_monedas,
+        base_editado: data.base_editado,
+        ventas_tpv_total: t.ventasTpv,
+        ingresos_digitales_total: t.digital,
+        efectivo_contado: t.arqueo,
+        efectivo_esperado: t.efectivoEsperado,
+        diferencia: t.diferencia,
+        cuadrado: t.cuadrado,
+        nota_diferencia: data.nota_diferencia || null,
+        estado: "abierto",
+      },
+      { onConflict: "fecha,empleado_id" },
+    )
+    .select("id")
+    .single();
+
+  if (upErr || !cierre) {
+    return { ok: false, error: upErr?.message ?? "No se pudo guardar el borrador" };
+  }
+  const cierreId = cierre.id;
+
+  // Borrar hijos previos
+  await Promise.all([
+    supabase.from("ventas_producto").delete().eq("cierre_id", cierreId),
+    supabase.from("ingresos_digitales").delete().eq("cierre_id", cierreId),
+    supabase.from("egresos").delete().eq("cierre_id", cierreId),
+    supabase.from("arqueo_billetes").delete().eq("cierre_id", cierreId),
+  ]);
+
+  // Insertar hijos — filtrar filas incompletas
+  const ventasRows = data.ventas
+    .filter((v) => v.producto_id && v.cantidad > 0)
+    .map((v) => ({
+      cierre_id: cierreId,
+      producto_id: v.producto_id,
+      cantidad: v.cantidad,
+      precio_unitario: v.precio_unitario,
+    }));
+
+  const digRows = data.digitales
+    .filter((d) => d.monto > 0)
+    .map((d) => ({
+      cierre_id: cierreId,
+      metodo: d.metodo,
+      monto: d.monto,
+      descripcion: d.descripcion || null,
+    }));
+
+  const egrRows = data.egresos
+    .filter((e) => e.monto > 0 && e.concepto.length >= 2 && e.categoria_id && e.unidad_id)
+    .map((e) => ({
+      cierre_id: cierreId,
+      concepto: e.concepto,
+      categoria_id: e.categoria_id,
+      unidad_id: e.unidad_id,
+      monto: e.monto,
+      metodo_pago: "efectivo" as const,
+    }));
+
+  const arqRows = data.arqueo
+    .filter((a) => a.cantidad > 0)
+    .map((a) => ({
+      cierre_id: cierreId,
+      denominacion_id: a.denominacion_id,
+      cantidad: a.cantidad,
+      subtotal: a.cantidad * a.valor,
+    }));
+
+  await Promise.all([
+    ventasRows.length
+      ? supabase.from("ventas_producto").insert(ventasRows)
+      : Promise.resolve({ error: null }),
+    digRows.length
+      ? supabase.from("ingresos_digitales").insert(digRows)
+      : Promise.resolve({ error: null }),
+    egrRows.length
+      ? supabase.from("egresos").insert(egrRows)
+      : Promise.resolve({ error: null }),
+    arqRows.length
+      ? supabase.from("arqueo_billetes").insert(arqRows)
+      : Promise.resolve({ error: null }),
+  ]);
+
+  // Upsert inventario de pizza (draft — sin cruce de vendidas)
+  const hasPizzaDraft =
+    (data.pizza_ruedas_inicio ?? 0) > 0 ||
+    (data.pizza_porciones_inicio ?? 0) > 0 ||
+    (data.pizza_horneada ?? 0) > 0 ||
+    (data.pizza_ruedas_final ?? 0) > 0 ||
+    (data.pizza_porciones_final ?? 0) > 0;
+
+  if (hasPizzaDraft) {
+    await supabase.from("inventario_pizza").upsert(
+      {
+        fecha,
+        empleado_id: user.id,
+        ruedas_inicio: data.pizza_ruedas_inicio,
+        porciones_inicio: data.pizza_porciones_inicio,
+        horneada: data.pizza_horneada,
+        ruedas_final: data.pizza_ruedas_final,
+        porciones_final: data.pizza_porciones_final,
+        notas: data.pizza_notas || null,
+      },
+      { onConflict: "fecha" },
+    );
+  }
+
+  return { ok: true, cierreId, savedAt: new Date().toISOString() };
 }
 
 /**

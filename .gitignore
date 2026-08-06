@@ -26,3 +26,9 @@ node_modules/
 # Archivos temporales
 *.tmp
 .cache/
+
+# Graphify
+graphify-out/
+
+# Claude hooks
+.claude/hooks/*.pyc

@@ -29,6 +29,10 @@ export type CierreExistente = {
   id: string;
   estado: "abierto" | "cerrado";
   base_inicial: number;
+  base_billetes: number;
+  base_monedas: number;
+  base_editado: boolean;
+  updated_at: string;
   nota_diferencia: string | null;
   ventas: { producto_id: string; cantidad: number; precio_unitario: number }[];
   digitales: {
@@ -85,7 +89,7 @@ export async function loadCierreByFecha(empleadoId: string, fecha: string): Prom
 
   const { data: cierre } = await supabase
     .from("cierres_diarios")
-    .select("id, estado, base_inicial, nota_diferencia")
+    .select("id, estado, base_inicial, base_billetes, base_monedas, base_editado, updated_at, nota_diferencia")
     .eq("fecha", fecha)
     .eq("empleado_id", empleadoId)
     .maybeSingle();
@@ -115,6 +119,10 @@ export async function loadCierreByFecha(empleadoId: string, fecha: string): Prom
     id: cierre.id,
     estado: cierre.estado as "abierto" | "cerrado",
     base_inicial: Number(cierre.base_inicial),
+    base_billetes: Number(cierre.base_billetes ?? 0),
+    base_monedas: Number(cierre.base_monedas ?? 0),
+    base_editado: Boolean(cierre.base_editado ?? false),
+    updated_at: cierre.updated_at ?? new Date().toISOString(),
     nota_diferencia: cierre.nota_diferencia,
     ventas: (ventas.data ?? []).map((v) => ({
       producto_id: v.producto_id,
@@ -137,6 +145,39 @@ export async function loadCierreByFecha(empleadoId: string, fecha: string): Prom
       denominacion_id: a.denominacion_id,
       cantidad: Number(a.cantidad),
     })),
+  };
+}
+
+// ─── Inventario de pizza ─────────────────────────────────────────────────────
+
+export type PizzaExistente = {
+  id: string;
+  ruedas_inicio: number;
+  porciones_inicio: number;
+  horneada: number;
+  ruedas_final: number;
+  porciones_final: number;
+  notas: string | null;
+} | null;
+
+export async function loadInventarioPizza(fecha: string): Promise<PizzaExistente> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("inventario_pizza")
+    .select("id, ruedas_inicio, porciones_inicio, horneada, ruedas_final, porciones_final, notas")
+    .eq("fecha", fecha)
+    .maybeSingle();
+
+  if (!data) return null;
+
+  return {
+    id: data.id,
+    ruedas_inicio: Number(data.ruedas_inicio),
+    porciones_inicio: Number(data.porciones_inicio),
+    horneada: Number(data.horneada),
+    ruedas_final: Number(data.ruedas_final),
+    porciones_final: Number(data.porciones_final),
+    notas: data.notas,
   };
 }
 

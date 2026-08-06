@@ -35,7 +35,7 @@ export function QtySheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-2xl pb-8">
+      <SheetContent side="bottom" className="rounded-t-3xl pb-10 glass-panel-lg border-0">
         <SheetHeader>
           <SheetTitle>{producto.nombre}</SheetTitle>
           <SheetDescription>

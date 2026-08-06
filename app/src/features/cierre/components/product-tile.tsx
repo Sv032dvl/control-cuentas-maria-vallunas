@@ -79,10 +79,12 @@ const TileContent = forwardRef<HTMLDivElement, TileContentProps>(
         role="button"
         aria-label={`${producto.nombre}, ${money(Number(producto.precio))}${active ? `, cantidad: ${qty}` : ""}`}
         className={cn(
-          "p-2.5 flex flex-col justify-between cursor-pointer select-none transition-all min-h-[88px]",
-          !showGrip && "active:scale-95",
-          active && "ring-2 ring-primary/30 bg-primary/5",
-          isDragging && "opacity-50 z-50 shadow-lg",
+          "p-3 flex flex-col justify-between cursor-pointer select-none transition-all duration-200 min-h-[92px] rounded-2xl",
+          !showGrip && "active:scale-[0.97]",
+          active
+            ? "ring-2 ring-primary/40 bg-primary/5 shadow-md shadow-primary/5"
+            : "glass-panel hover:shadow-md",
+          isDragging && "opacity-60 z-50 shadow-xl scale-105",
         )}
         style={style}
         onClick={showGrip ? undefined : onPress}
@@ -102,7 +104,7 @@ const TileContent = forwardRef<HTMLDivElement, TileContentProps>(
             {money(Number(producto.precio))}
           </span>
           {active && (
-            <span className="size-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center shrink-0">
+            <span className="size-6 rounded-full btn-gradient text-[11px] font-bold flex items-center justify-center shrink-0 shadow-sm">
               {qty}
             </span>
           )}

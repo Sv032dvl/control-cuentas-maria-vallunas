@@ -17,18 +17,20 @@ export function ProgressSteps({ steps, current, onJump }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between text-xs">
-        <span className="font-medium text-foreground">
-          Paso {current + 1} de {steps.length}:{" "}
+        <span className="font-semibold text-foreground">
+          Paso {current + 1}{" "}
+          <span className="text-muted-foreground font-normal">de {steps.length}</span>
+          <span className="mx-1.5 text-muted-foreground/50">|</span>
           <span className="text-primary">{steps[current]?.label}</span>
         </span>
-        <span className="text-muted-foreground tabular-nums">
+        <span className="text-muted-foreground tabular-nums font-medium">
           {Math.round(pct)}%
         </span>
       </div>
 
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+      <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted/60 glass-panel">
         <div
-          className="h-full rounded-full bg-primary transition-all"
+          className="h-full rounded-full btn-gradient transition-all duration-500 ease-out"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -43,17 +45,17 @@ export function ProgressSteps({ steps, current, onJump }: Props) {
                 type="button"
                 onClick={() => onJump?.(idx)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors",
-                  active && "bg-primary/10 text-primary font-medium",
-                  done && "text-foreground",
-                  !active && !done && "text-muted-foreground hover:text-foreground",
+                  "flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 transition-all duration-200",
+                  active && "glass-panel bg-primary/8 text-primary font-semibold shadow-sm",
+                  done && "text-foreground hover:bg-muted/50",
+                  !active && !done && "text-muted-foreground hover:text-foreground hover:bg-muted/40",
                 )}
               >
                 <span
                   className={cn(
-                    "grid place-items-center size-5 rounded-full text-[10px] font-bold",
-                    active && "bg-primary text-primary-foreground",
-                    done && "bg-success text-success-foreground",
+                    "grid place-items-center size-6 rounded-full text-[10px] font-bold transition-all",
+                    active && "btn-gradient text-primary-foreground shadow-sm",
+                    done && "total-card-success text-success-foreground",
                     !active && !done && "bg-muted text-muted-foreground",
                   )}
                 >
@@ -62,7 +64,7 @@ export function ProgressSteps({ steps, current, onJump }: Props) {
                 {s.short}
               </button>
               {idx < steps.length - 1 && (
-                <span className="h-px w-3 bg-border" aria-hidden />
+                <span className="h-px w-4 bg-border/60" aria-hidden />
               )}
             </li>
           );

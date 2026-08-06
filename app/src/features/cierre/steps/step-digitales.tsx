@@ -38,14 +38,17 @@ export function StepDigitales({ loyverseData }: Props) {
   return (
     <div className="space-y-5">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold flex items-center gap-2">
-          <Smartphone className="size-5 text-primary" /> Ingresos digitales
+        <h2 className="text-xl md:text-2xl font-bold flex items-center gap-2.5 tracking-tight">
+          <span className="flex items-center justify-center size-9 rounded-xl btn-gradient shadow-sm">
+            <Smartphone className="size-4 text-primary-foreground" />
+          </span>
+          Ingresos digitales
         </h2>
         <p className="text-sm text-muted-foreground">
           Pagos por Nequi, transferencia o datáfono.
         </p>
         {loyverseData && loyverseData.totalDigital > 0 && (
-          <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30 px-3 py-2">
+          <div className="flex items-center gap-2 rounded-2xl border border-blue-200/70 bg-blue-50/80 dark:border-blue-800/40 dark:bg-blue-950/30 px-3.5 py-2.5 shadow-sm backdrop-blur-sm">
             <Zap className="size-4 text-blue-600 dark:text-blue-400 shrink-0" />
             <p className="text-xs text-blue-700 dark:text-blue-300">
               Datáfono importado del TPV — {money(loyverseData.totalDigital)}
@@ -57,7 +60,7 @@ export function StepDigitales({ loyverseData }: Props) {
       <ul className="space-y-3">
         {fields.map((field, idx) => (
           <li key={field.id}>
-            <Card className="p-3 space-y-3">
+            <Card className="p-4 space-y-3 glass-panel rounded-2xl border-0">
               <div className="flex items-center gap-2">
                 <div className="flex-1">
                   <Label className="text-xs">Método</Label>
@@ -129,7 +132,7 @@ export function StepDigitales({ loyverseData }: Props) {
       <Button
         type="button"
         variant="outline"
-        className="w-full h-12"
+        className="w-full h-12 rounded-2xl border-dashed border-2 hover:border-primary/40 hover:bg-primary/5 transition-all"
         onClick={() =>
           append({ metodo: "nequi", monto: 0, descripcion: "" })
         }
@@ -137,9 +140,9 @@ export function StepDigitales({ loyverseData }: Props) {
         <Plus className="size-4" /> Añadir ingreso
       </Button>
 
-      <Card className="p-3 flex items-center justify-between bg-secondary">
-        <span className="text-sm text-muted-foreground">Total digital</span>
-        <span className="text-lg font-bold tabular-nums">{money(total)}</span>
+      <Card className="p-4 flex items-center justify-between glass-panel rounded-2xl border-0">
+        <span className="text-sm text-muted-foreground font-medium">Total digital</span>
+        <span className="text-xl font-bold tabular-nums text-primary">{money(total)}</span>
       </Card>
     </div>
   );

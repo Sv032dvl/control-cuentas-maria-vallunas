@@ -40,7 +40,7 @@ export function QtyStepper({
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-1 rounded-xl border bg-background",
+        "inline-flex items-center gap-0.5 rounded-2xl border bg-background/80 backdrop-blur-sm shadow-sm",
         className,
       )}
     >
@@ -48,7 +48,7 @@ export function QtyStepper({
         type="button"
         variant="ghost"
         size="icon"
-        className="size-11 rounded-l-xl rounded-r-none"
+        className="size-11 rounded-l-2xl rounded-r-none hover:bg-muted/80"
         onClick={() => step(-1)}
         disabled={value <= min}
         aria-label="Restar"
@@ -70,7 +70,7 @@ export function QtyStepper({
         type="button"
         variant="ghost"
         size="icon"
-        className="size-11 rounded-r-xl rounded-l-none"
+        className="size-11 rounded-r-2xl rounded-l-none hover:bg-muted/80"
         onClick={() => step(1)}
         disabled={value >= max}
         aria-label="Sumar"

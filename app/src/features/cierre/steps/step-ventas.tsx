@@ -205,8 +205,11 @@ export function StepVentas({ productos: productosProp, unidades, loyverseData, f
     <div className="space-y-4">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <ShoppingBag className="size-5 text-primary" /> Ventas del día
+          <h2 className="text-xl md:text-2xl font-bold flex items-center gap-2.5 tracking-tight">
+            <span className="flex items-center justify-center size-9 rounded-xl btn-gradient shadow-sm">
+              <ShoppingBag className="size-4 text-primary-foreground" />
+            </span>
+            Ventas del día
           </h2>
           <Button
             type="button"
@@ -242,7 +245,7 @@ export function StepVentas({ productos: productosProp, unidades, loyverseData, f
           {!hasVentas && loyverseData !== null ? (
             <Button
               type="button"
-              className="w-full h-12"
+              className="w-full h-12 rounded-2xl btn-gradient border-0 font-semibold text-base shadow-md"
               onClick={handleImportar}
               disabled={isPending}
             >
@@ -254,7 +257,7 @@ export function StepVentas({ productos: productosProp, unidades, loyverseData, f
               Importar ventas del TPV
             </Button>
           ) : hasVentas ? (
-            <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30 px-3 py-2">
+            <div className="flex items-center gap-2 rounded-2xl border border-blue-200/70 bg-blue-50/80 dark:border-blue-800/40 dark:bg-blue-950/30 px-3.5 py-2.5 shadow-sm backdrop-blur-sm">
               <Zap className="size-4 text-blue-600 dark:text-blue-400 shrink-0" />
               <p className="text-xs text-blue-700 dark:text-blue-300 flex-1">
                 {productosConVenta} producto(s) con ventas — {money(total)}
@@ -286,10 +289,10 @@ export function StepVentas({ productos: productosProp, unidades, loyverseData, f
             type="button"
             onClick={() => setSelectedUnidad(null)}
             className={cn(
-              "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+              "shrink-0 rounded-full px-3.5 py-2 text-xs font-medium transition-all",
               selectedUnidad === null
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80",
+                ? "btn-gradient shadow-sm"
+                : "bg-muted/70 text-muted-foreground hover:bg-muted/90 backdrop-blur-sm",
             )}
           >
             Venta
@@ -307,12 +310,12 @@ export function StepVentas({ productos: productosProp, unidades, loyverseData, f
               type="button"
               onClick={() => setSelectedUnidad(unidadId)}
               className={cn(
-                "shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                "shrink-0 rounded-full px-3.5 py-2 text-xs font-medium transition-all",
                 isActive
-                  ? "bg-primary text-primary-foreground"
+                  ? "btn-gradient shadow-sm"
                   : count > 0
-                    ? "bg-muted text-foreground ring-1 ring-primary/30"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80",
+                    ? "bg-muted/70 text-foreground ring-1 ring-primary/30 backdrop-blur-sm shadow-sm"
+                    : "bg-muted/70 text-muted-foreground hover:bg-muted/90 backdrop-blur-sm",
               )}
             >
               {unidadById[unidadId] ?? "—"}
@@ -359,7 +362,7 @@ export function StepVentas({ productos: productosProp, unidades, loyverseData, f
           </div>
         )
       ) : selectedUnidad === null ? (
-        <div className="text-center py-8 text-sm text-muted-foreground">
+        <div className="text-center py-10 text-sm text-muted-foreground glass-panel rounded-2xl">
           No hay productos en la venta aún.
           <br />
           Selecciona una categoría para agregar productos.
@@ -369,7 +372,7 @@ export function StepVentas({ productos: productosProp, unidades, loyverseData, f
       {/* Total sticky */}
       {!reorderMode && (
         <div className="sticky bottom-20 md:bottom-4 z-10">
-          <Card className="p-3 flex items-center justify-between bg-primary text-primary-foreground border-primary">
+          <Card className="p-4 flex items-center justify-between total-card-gradient border-0 rounded-2xl">
             <Badge variant="secondary" className="bg-primary-foreground/15 text-primary-foreground border-transparent">
               Total ventas
             </Badge>

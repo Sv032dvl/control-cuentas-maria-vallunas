@@ -42,7 +42,7 @@ Sistema de **control de caja diario** para el negocio "María Vallunas". Permite
         ├── components/     ← componentes compartidos (ui, layout, icons)
         ├── features/       ← módulos de negocio
         │   ├── auth/       ← login/logout
-        │   ├── cierre/     ← wizard de cierre de caja (6 pasos)
+        │   ├── cierre/     ← wizard de cierre de caja (7 pasos)
         │   ├── catalogos/  ← CRUD de productos, categorías, unidades, denominaciones
         │   ├── dashboard/  ← vista admin de cierres y alertas
         │   └── usuarios/   ← gestión de usuarios (admin only)
@@ -116,8 +116,10 @@ No existe super_admin ni otros roles.
 - `id` (uuid, FK a auth.users), `nombre`, `role` ('admin'|'empleado'), `activo` (boolean)
 
 **`cierres_diarios`** — Cierre de caja por día/empleado
-- `id`, `fecha`, `empleado_id`, `base_inicial`, `ventas_tpv_total`, `efectivo_contado`, `ingresos_digitales_total`, `efectivo_esperado`, `diferencia`, `cuadrado`, `nota_diferencia`, `estado` ('abierto'|'cerrado')
+- `id`, `fecha`, `empleado_id`, `base_inicial`, `base_billetes`, `base_monedas`, `base_editado`, `ventas_tpv_total`, `efectivo_contado`, `ingresos_digitales_total`, `efectivo_esperado`, `diferencia`, `cuadrado`, `nota_diferencia`, `estado` ('abierto'|'cerrado'), `created_at`, `updated_at`
 - Constraint: un cierre por empleado por día
+- `base_billetes` + `base_monedas` = `base_inicial` (desglose de la base)
+- `base_editado`: true si el empleado modificó la base tras confirmarla (visible al admin)
 
 **`ventas_producto`** — Líneas de venta (hijo de cierres_diarios)
 - `cierre_id`, `producto_id`, `cantidad`, `precio_unitario`, `total` (generado)
@@ -130,6 +132,12 @@ No existe super_admin ni otros roles.
 
 **`arqueo_billetes`** — Conteo de billetes (hijo de cierres_diarios)
 - `cierre_id`, `denominacion_id`, `cantidad`, `subtotal`
+
+**`inventario_pizza`** — Inventario diario de pizza (independiente del cierre)
+- `id`, `fecha`, `empleado_id`, `ruedas_inicio`, `porciones_inicio`, `horneada`, `ruedas_final`, `porciones_final`, `porciones_vendidas_tpv`, `diferencia`, `notas`
+- Constraint: `UNIQUE(fecha)` — un solo registro por día (NO por empleado)
+- `porciones_vendidas_tpv`: calculado al cerrar, cruzando ventas de productos de la unidad Pizzería
+- `diferencia`: consumidas - porciones_vendidas_tpv (merma real)
 
 ### Catálogos
 
@@ -144,6 +152,32 @@ No existe super_admin ni otros roles.
 - `v_cuadre_diario` — Resumen de cierres con datos calculados
 - `v_alertas_admin` — Cierres cerrados y descuadrados
 
+## Inventario de pizza
+
+### Constante y ecuación
+
+- `PORCIONES_POR_RUEDA = 8` (siempre fijo)
+- El cajero cuenta manualmente al abrir y al cerrar (NO se auto-llena del día anterior)
+- El cajero registra ruedas horneadas (producción del día)
+
+```
+Disponible = (ruedas_inicio × 8 + porciones_inicio) + (horneada × 8)
+Restante   = ruedas_final × 8 + porciones_final
+Consumidas = Disponible - Restante
+Merma      = Consumidas - Porciones vendidas TPV  (calculado al cerrar, visible al admin)
+```
+
+### Persistencia
+
+- Upsert con `onConflict: "fecha"` (un registro por día)
+- `guardarCierre()`: calcula `porciones_vendidas_tpv` cruzando ventas de productos de la unidad Pizzería (`unidad_id = 75340370-d308-44ff-9cce-74bcfc0358ed`)
+- `guardarCierreDraft()`: guarda sin cálculo de vendidas (datos parciales)
+- La tabla es independiente de `cierres_diarios` (no tiene FK al cierre)
+
+### Ruta `/inventario`
+
+Redirige a `/cierre` — el inventario de pizza se registra dentro del wizard, no en página independiente. El análisis de mermas se mostrará en el dashboard del admin (pendiente de diseño).
+
 ## Ecuación maestra del cierre
 
 ```
@@ -152,13 +186,152 @@ Diferencia = Efectivo Arqueo (contado) - Efectivo Esperado (calculado)
 Cuadrado = |Diferencia| < $1
 ```
 
-## Cierre de caja — flujo del wizard
+## Cierre de caja — Wizard (detalle completo)
 
-6 pasos: Base inicial → Ventas → Digitales → Egresos → Arqueo → Resumen
+### Estructura de archivos
 
-- Se puede guardar borrador en cualquier paso (estado = 'abierto')
-- "Cerrar día" en el último paso (estado = 'cerrado', no editable después)
+```
+features/cierre/
+├── cierre-wizard.tsx          ← Orquestador principal (React Hook Form + 7 pasos)
+├── schema.ts                  ← Zod schemas (estricto + draft) + calcTotales() + calcPizza()
+├── actions.ts                 ← Server Actions (guardar, guardarDraft, importar Loyverse, reordenar)
+├── loaders.ts                 ← Loaders server-side (catálogos, cierre existente, Loyverse, pizza)
+├── hooks/
+│   └── use-auto-save.ts      ← Auto-guardado 3 capas (beforeunload + localStorage + DB)
+├── components/
+│   ├── progress-steps.tsx     ← Indicador de progreso con navegación por pasos
+│   ├── date-selector.tsx      ← Navegación de fecha (±2 días máx)
+│   ├── money-input.tsx        ← Input de moneda con $ y formato miles (COP, sin decimales)
+│   ├── qty-stepper.tsx        ← Selector +/- con haptic feedback
+│   ├── qty-sheet.tsx          ← Bottom sheet para editar cantidad de producto
+│   ├── product-tile.tsx       ← Card de producto con soporte drag-n-drop
+│   ├── save-status.tsx        ← Indicador visual de estado de auto-guardado
+│   └── restore-draft-banner.tsx ← Banner para restaurar borrador local
+└── steps/
+    ├── step-base.tsx          ← Paso 1: Base inicial (billetes + monedas con confirmación)
+    ├── step-pizza.tsx         ← Paso 2: Inventario pizza (ruedas, porciones, producción)
+    ├── step-ventas.tsx        ← Paso 3: Ventas (import Loyverse + DnD + filtros) — MÁS COMPLEJO
+    ├── step-digitales.tsx     ← Paso 4: Pagos digitales (useFieldArray)
+    ├── step-egresos.tsx       ← Paso 5: Gastos (useFieldArray)
+    ├── step-arqueo.tsx        ← Paso 6: Conteo de billetes por denominación
+    └── step-resumen.tsx       ← Paso 7: Resumen, cuadre y nota si descuadrado
+```
+
+Hooks compartidos:
+```
+lib/hooks/
+└── use-debounced-callback.ts  ← Hook genérico de debounce [debouncedFn, cancelFn]
+```
+
+### Flujo general
+
+7 pasos: **Base inicial → Pizza → Ventas → Digitales → Egresos → Arqueo → Resumen**
+
+- Se puede guardar borrador en cualquier paso (estado = `'abierto'`)
+- "Cerrar día" en el último paso (estado = `'cerrado'`, no editable después)
 - Server action `guardarCierre()`: upsert padre + delete/insert hijos
+
+### Orquestador (`cierre-wizard.tsx`)
+
+**Props que recibe**:
+- `catalogos`: productos, unidades, categorías de egreso, denominaciones
+- `existente`: cierre previo (borrador o cerrado) para la fecha (incluye `updated_at`)
+- `loyverseData`: ventas y pagos digitales pre-cargados del TPV
+- `pizzaExistente`: inventario de pizza del día (`PizzaExistente | null`)
+- `fecha`: string YYYY-MM-DD
+- `userId`: string UUID del empleado autenticado (para auto-save)
+
+**Estado**:
+- `step` (0-6): paso actual
+- `cerrado`: boolean, si ya está cerrado es read-only
+- `showConfirm`: dialog de confirmación si descuadrado
+
+**Lógica clave**:
+- `buildDefaults()`: prioridad → draft existente > datos Loyverse > vacío
+- `calcTotales()` se ejecuta en cada cambio (cálculos en tiempo real)
+- Validación por paso solo en pasos 0, 3 y 4 (los que tienen campos validables)
+- Footer sticky muestra diferencia en vivo (verde si cuadra, ámbar/rojo si no)
+
+### Detalle por paso
+
+| Paso | Componente | Descripción | Complejidad |
+|------|-----------|-------------|-------------|
+| 1 | `step-base.tsx` | Dos inputs (Billetes + Monedas) con auto-suma, alerta de confirmación, tracking de edición (`base_editado`). Admin ve si fue editada | Baja |
+| 2 | `step-pizza.tsx` | Inventario de pizza: 3 secciones (Apertura, Producción, Cierre). QtyStepper para ruedas y porciones. Footer sticky con disponible/restante/consumidas. Nota opcional | Baja |
+| 3 | `step-ventas.tsx` | Grid de productos filtrable por unidad (pills de categoría). Import de Loyverse. Drag-n-drop para reordenar. Bottom sheet para editar cantidades. Total sticky en footer | **Alta** (398 líneas) |
+| 4 | `step-digitales.tsx` | `useFieldArray` para Nequi/Transferencia/Datáfono. Pre-llenado con datáfono de Loyverse. Add/remove dinámico | Media |
+| 5 | `step-egresos.tsx` | `useFieldArray` para gastos con concepto, categoría, unidad, monto y método de pago. Dos totales: efectivo y transferencia | Media |
+| 6 | `step-arqueo.tsx` | Grid de denominaciones con `QtyStepper` por cada una. Subtotal por fila. Total contado en footer sticky | Baja |
+| 7 | `step-resumen.tsx` | Tarjeta de cuadre (verde/rojo). Desglose: Base + Ventas - Digital - Egresos = Esperado. Alerta si \|diferencia\| > $10,000. Nota obligatoria si descuadrado (max 280 chars) | Baja |
+
+### Step 2 (Ventas) — detalles adicionales
+
+Es el paso más complejo del wizard:
+- **Filtros por categoría**: pills de unidad de negocio + "Venta" (solo productos con qty > 0)
+- **Import Loyverse**: botón que llama `importarVentasLoyverse(fecha)` y llena el formulario
+- **Drag-n-drop**: modo toggle con `@dnd-kit/core` + `@dnd-kit/sortable`, solo dentro de una categoría, guarda orden en DB inmediatamente
+- **Bottom sheet**: tap en producto abre `QtySheet` con `QtyStepper`
+- **Estado local**: `imported`, `selectedUnidad`, `sheetProduct`, `reorderMode`, `localProductos`
+
+### Flujo de datos
+
+```
+Page Load (RSC)
+  ↓
+loadCatalogos() + loadCierreByFecha() + loadVentasLoyverse() + loadInventarioPizza()
+  ↓
+CierreWizard recibe props
+  ↓
+buildDefaults() → pre-llena form (draft > Loyverse > vacío, pizza desde pizzaExistente)
+  ↓
+Usuario navega pasos (useState)
+  ↓
+Cada step lee/escribe vía useFormContext
+  ↓
+calcTotales() en cada cambio (cálculo en vivo)
+  ↓
+"Guardar" → guardarCierre(values, false) → upsert + hijos
+  ↓
+"Cerrar día" → validación → confirmación → guardarCierre(values, true)
+```
+
+### Server Actions (`actions.ts`)
+
+- **`guardarCierre(raw, cerrar, fecha?)`**: valida con Zod (schema estricto) → upsert `cierres_diarios` → delete hijos → insert hijos (solo rows con qty/monto > 0) → upsert `inventario_pizza` (con cálculo de vendidas TPV) → revalidate `/cierre` y `/dashboard`
+- **`guardarCierreDraft(raw, fecha)`**: valida con `cierreDraftSchema` (relajado) → upsert como `estado: 'abierto'` → delete/insert hijos (filtra incompletos) → upsert `inventario_pizza` (sin vendidas) → **NO revalidate** (evita re-render durante auto-save) → retorna `{ ok, cierreId, savedAt }`
+- **`importarVentasLoyverse(fecha)`**: llama `loadVentasLoyverse()` para importar bajo demanda
+- **`reorderProductosAction(orden[])`**: actualiza campo `orden` en tabla `productos`
+
+### Patrones importantes
+
+- **Form como source of truth**: React Hook Form maneja todo el estado, sin state manager externo
+- **Delete + reinsert**: al guardar, se borran todos los hijos y se reinsertan (más seguro que upsert para arrays)
+- **Mobile-first**: targets grandes (h-12, h-14), bottom sheets, teclado numérico, haptic feedback, footers sticky
+- **Loyverse pre-carga en SSR**: los datos se cargan en el server component y se pasan como props; el import en paso 2 es bajo demanda
+- **Validación escalonada**: por paso al navegar, completa al cerrar
+- **Doble Zod schema**: `cierreFullSchema` (estricto, para cierre final) + `cierreDraftSchema` (relajado, para auto-save de borradores parciales)
+
+### Auto-guardado (3 capas de protección)
+
+El wizard protege contra pérdida de datos con 3 capas combinadas en `hooks/use-auto-save.ts`:
+
+| Capa | Mecanismo | Trigger | Delay |
+|------|-----------|---------|-------|
+| 1 | `beforeunload` + `visibilitychange` | Cerrar pestaña / cambiar app (iOS Safari) | Inmediato |
+| 2 | `localStorage` | Cada cambio en el formulario | Debounce 2s |
+| 3 | `guardarCierreDraft()` a DB | Cada cambio / al cambiar de paso | Debounce 30s / inmediato |
+
+**localStorage key**: `cierre-draft-{userId}-{fecha}` — almacena `{ values, step, timestamp }`
+
+**Flujo al montar**: lee localStorage → compara `draft.timestamp` con `existente.updated_at` → si local es más reciente, muestra `RestoreDraftBanner`; si DB es más reciente, descarta local.
+
+**Coordinación con guardado manual**: `notifyManualSave()` actualiza snapshot, cancela debounce pendiente y limpia localStorage.
+
+**UI**:
+- `SaveStatusIndicator`: en footer sticky, muestra "Guardando..." / "Guardado HH:MM" / "Error al guardar"
+- `RestoreDraftBanner`: después del ProgressSteps, ofrece restaurar o descartar borrador local
+
+**No hace auto-save si**: el cierre ya está cerrado (`cerrado === true`)
 
 ## Loyverse (TPV del establecimiento)
 
@@ -241,6 +414,7 @@ receipt
   GRANT SELECT, INSERT, UPDATE, DELETE ON <tabla> TO service_role;
   ```
 - Tablas que ya tienen GRANT para `service_role`: `profiles`, `productos`, `unidades_negocio`, `sync_loyverse_pendientes`, `cierres_diarios`, `ventas_producto`, `ingresos_digitales`, `egresos`, `arqueo_billetes`.
+- **Pendiente de GRANT**: `inventario_pizza` — ejecutar `GRANT SELECT, INSERT, UPDATE, DELETE ON inventario_pizza TO service_role;`
 
 ### Eliminación de registros con tablas hijas
 
@@ -262,3 +436,13 @@ receipt
 - Componentes de UI en `components/ui/` (shadcn)
 - Layout components en `components/layout/`
 - Para eliminar registros con hijos, usar el patrón de eliminación manual de hijos antes del padre (no confiar en CASCADE vía PostgREST)
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

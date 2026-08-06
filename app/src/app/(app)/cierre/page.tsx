@@ -8,6 +8,7 @@ import {
   loadCatalogos,
   loadCierreByFecha,
   loadVentasLoyverse,
+  loadInventarioPizza,
 } from "@/features/cierre/loaders";
 
 export const metadata: Metadata = {
@@ -44,10 +45,11 @@ export default async function CierrePage({ searchParams }: Props) {
     redirect("/cierre");
   }
 
-  const [catalogos, existente, loyverseData] = await Promise.all([
+  const [catalogos, existente, loyverseData, pizzaExistente] = await Promise.all([
     loadCatalogos(),
     loadCierreByFecha(user.id, fecha),
     loadVentasLoyverse(fecha),
+    loadInventarioPizza(fecha),
   ]);
 
   return (
@@ -58,7 +60,9 @@ export default async function CierrePage({ searchParams }: Props) {
         catalogos={catalogos}
         existente={existente}
         loyverseData={loyverseData}
+        pizzaExistente={pizzaExistente}
         fecha={fecha}
+        userId={user.id}
       />
     </div>
   );

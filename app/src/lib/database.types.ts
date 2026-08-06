@@ -87,7 +87,10 @@ export type Database = {
       }
       cierres_diarios: {
         Row: {
+          base_billetes: number
+          base_editado: boolean
           base_inicial: number
+          base_monedas: number
           created_at: string
           cuadrado: boolean
           diferencia: number
@@ -103,7 +106,10 @@ export type Database = {
           ventas_tpv_total: number
         }
         Insert: {
+          base_billetes?: number
+          base_editado?: boolean
           base_inicial?: number
+          base_monedas?: number
           created_at?: string
           cuadrado?: boolean
           diferencia?: number
@@ -119,7 +125,10 @@ export type Database = {
           ventas_tpv_total?: number
         }
         Update: {
+          base_billetes?: number
+          base_editado?: boolean
           base_inicial?: number
+          base_monedas?: number
           created_at?: string
           cuadrado?: boolean
           diferencia?: number
@@ -206,53 +215,74 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "egresos_cierre_id_fkey"
+            columns: ["cierre_id"]
+            isOneToOne: false
+            referencedRelation: "v_alertas_admin"
+            referencedColumns: ["cierre_id"]
+          },
+          {
+            foreignKeyName: "egresos_cierre_id_fkey"
+            columns: ["cierre_id"]
+            isOneToOne: false
+            referencedRelation: "v_cuadre_diario"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "egresos_unidad_id_fkey"
             columns: ["unidad_id"]
             isOneToOne: false
             referencedRelation: "unidades_negocio"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "egresos_unidad_id_fkey"
+            columns: ["unidad_id"]
+            isOneToOne: false
+            referencedRelation: "v_rentabilidad_unidad"
+            referencedColumns: ["unidad_id"]
+          },
         ]
       }
       facturas_proveedor: {
         Row: {
-          id: string
-          proveedor: string
-          numero_factura: string | null
-          fecha: string
-          fecha_vencimiento: string | null
-          monto: number
-          estado: string
-          metodo_pago: string | null
-          fecha_pago: string | null
-          nota: string | null
           created_at: string
+          estado: string
+          fecha: string
+          fecha_pago: string | null
+          fecha_vencimiento: string | null
+          id: string
+          metodo_pago: string | null
+          monto: number
+          nota: string | null
+          numero_factura: string | null
+          proveedor: string
         }
         Insert: {
-          id?: string
-          proveedor: string
-          numero_factura?: string | null
-          fecha: string
-          fecha_vencimiento?: string | null
-          monto: number
-          estado?: string
-          metodo_pago?: string | null
-          fecha_pago?: string | null
-          nota?: string | null
           created_at?: string
+          estado?: string
+          fecha: string
+          fecha_pago?: string | null
+          fecha_vencimiento?: string | null
+          id?: string
+          metodo_pago?: string | null
+          monto: number
+          nota?: string | null
+          numero_factura?: string | null
+          proveedor: string
         }
         Update: {
-          id?: string
-          proveedor?: string
-          numero_factura?: string | null
-          fecha?: string
-          fecha_vencimiento?: string | null
-          monto?: number
-          estado?: string
-          metodo_pago?: string | null
-          fecha_pago?: string | null
-          nota?: string | null
           created_at?: string
+          estado?: string
+          fecha?: string
+          fecha_pago?: string | null
+          fecha_vencimiento?: string | null
+          id?: string
+          metodo_pago?: string | null
+          monto?: number
+          nota?: string | null
+          numero_factura?: string | null
+          proveedor?: string
         }
         Relationships: []
       }
@@ -284,6 +314,20 @@ export type Database = {
             columns: ["cierre_id"]
             isOneToOne: false
             referencedRelation: "cierres_diarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingresos_digitales_cierre_id_fkey"
+            columns: ["cierre_id"]
+            isOneToOne: false
+            referencedRelation: "v_alertas_admin"
+            referencedColumns: ["cierre_id"]
+          },
+          {
+            foreignKeyName: "ingresos_digitales_cierre_id_fkey"
+            columns: ["cierre_id"]
+            isOneToOne: false
+            referencedRelation: "v_cuadre_diario"
             referencedColumns: ["id"]
           },
         ]
@@ -347,7 +391,7 @@ export type Database = {
           id: string
           loyverse_item_id: string | null
           nombre: string
-          orden: number
+          orden: number | null
           precio: number
           unidad_id: string
         }
@@ -356,7 +400,7 @@ export type Database = {
           id?: string
           loyverse_item_id?: string | null
           nombre: string
-          orden?: number
+          orden?: number | null
           precio: number
           unidad_id: string
         }
@@ -365,7 +409,7 @@ export type Database = {
           id?: string
           loyverse_item_id?: string | null
           nombre?: string
-          orden?: number
+          orden?: number | null
           precio?: number
           unidad_id?: string
         }
@@ -377,58 +421,12 @@ export type Database = {
             referencedRelation: "unidades_negocio"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      sync_loyverse_pendientes: {
-        Row: {
-          id: string
-          tipo: string
-          loyverse_item_id: string
-          nombre_loyverse: string
-          precio_loyverse: number
-          categoria_loyverse: string | null
-          nombre_actual: string | null
-          precio_actual: number | null
-          producto_id: string | null
-          estado: string
-          created_at: string
-          resuelto_at: string | null
-        }
-        Insert: {
-          id?: string
-          tipo: string
-          loyverse_item_id: string
-          nombre_loyverse: string
-          precio_loyverse?: number
-          categoria_loyverse?: string | null
-          nombre_actual?: string | null
-          precio_actual?: number | null
-          producto_id?: string | null
-          estado?: string
-          created_at?: string
-          resuelto_at?: string | null
-        }
-        Update: {
-          id?: string
-          tipo?: string
-          loyverse_item_id?: string
-          nombre_loyverse?: string
-          precio_loyverse?: number
-          categoria_loyverse?: string | null
-          nombre_actual?: string | null
-          precio_actual?: number | null
-          producto_id?: string | null
-          estado?: string
-          created_at?: string
-          resuelto_at?: string | null
-        }
-        Relationships: [
           {
-            foreignKeyName: "sync_loyverse_pendientes_producto_id_fkey"
-            columns: ["producto_id"]
+            foreignKeyName: "productos_unidad_id_fkey"
+            columns: ["unidad_id"]
             isOneToOne: false
-            referencedRelation: "productos"
-            referencedColumns: ["id"]
+            referencedRelation: "v_rentabilidad_unidad"
+            referencedColumns: ["unidad_id"]
           },
         ]
       }
@@ -489,6 +487,66 @@ export type Database = {
             referencedRelation: "unidades_negocio"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "reglas_prorrateo_unidad_origen_fkey"
+            columns: ["unidad_origen"]
+            isOneToOne: false
+            referencedRelation: "v_rentabilidad_unidad"
+            referencedColumns: ["unidad_id"]
+          },
+        ]
+      }
+      sync_loyverse_pendientes: {
+        Row: {
+          categoria_loyverse: string | null
+          created_at: string
+          estado: string
+          id: string
+          loyverse_item_id: string
+          nombre_actual: string | null
+          nombre_loyverse: string
+          precio_actual: number | null
+          precio_loyverse: number
+          producto_id: string | null
+          resuelto_at: string | null
+          tipo: string
+        }
+        Insert: {
+          categoria_loyverse?: string | null
+          created_at?: string
+          estado?: string
+          id?: string
+          loyverse_item_id: string
+          nombre_actual?: string | null
+          nombre_loyverse: string
+          precio_actual?: number | null
+          precio_loyverse?: number
+          producto_id?: string | null
+          resuelto_at?: string | null
+          tipo: string
+        }
+        Update: {
+          categoria_loyverse?: string | null
+          created_at?: string
+          estado?: string
+          id?: string
+          loyverse_item_id?: string
+          nombre_actual?: string | null
+          nombre_loyverse?: string
+          precio_actual?: number | null
+          precio_loyverse?: number
+          producto_id?: string | null
+          resuelto_at?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_loyverse_pendientes_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       unidades_negocio: {
@@ -543,6 +601,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "ventas_producto_cierre_id_fkey"
+            columns: ["cierre_id"]
+            isOneToOne: false
+            referencedRelation: "v_alertas_admin"
+            referencedColumns: ["cierre_id"]
+          },
+          {
+            foreignKeyName: "ventas_producto_cierre_id_fkey"
+            columns: ["cierre_id"]
+            isOneToOne: false
+            referencedRelation: "v_cuadre_diario"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "ventas_producto_producto_id_fkey"
             columns: ["producto_id"]
             isOneToOne: false
@@ -566,7 +638,10 @@ export type Database = {
       }
       v_cuadre_diario: {
         Row: {
+          base_billetes: number | null
+          base_editado: boolean | null
           base_inicial: number | null
+          base_monedas: number | null
           cuadrado: boolean | null
           diferencia: number | null
           efectivo_arqueo: number | null
@@ -622,6 +697,7 @@ export type Database = {
 }
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
 type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
@@ -718,6 +794,23 @@ export type Enums<
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
 
 export const Constants = {

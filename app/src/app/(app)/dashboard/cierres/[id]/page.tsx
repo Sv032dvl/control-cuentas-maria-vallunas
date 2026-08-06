@@ -110,7 +110,19 @@ export default async function CierreDetailPage({ params }: Params) {
       <section className="grid sm:grid-cols-2 gap-3">
         <Card className="p-4 space-y-2">
           <h3 className="text-sm font-semibold">Resumen</h3>
-          <Row label="Base inicial" value={money(Number(cuadre.base_inicial ?? 0))} />
+          <Row label="Base inicial" value={money(Number(cuadre.base_inicial ?? 0))} bold />
+          {(Number(cuadre.base_billetes ?? 0) > 0 || Number(cuadre.base_monedas ?? 0) > 0) && (
+            <>
+              <Row label="  Billetes" value={money(Number(cuadre.base_billetes ?? 0))} />
+              <Row label="  Monedas" value={money(Number(cuadre.base_monedas ?? 0))} />
+            </>
+          )}
+          {cuadre.base_editado && (
+            <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+              <AlertTriangle className="size-3" />
+              <span>Base editada tras confirmacion</span>
+            </div>
+          )}
           <Row label="Ventas TPV" value={money(Number(cuadre.ventas_tpv_total ?? 0))} />
           <Row label="Digital" value={money(Number(cuadre.ingresos_digitales_total ?? 0))} />
           <Row label="Egresos efectivo" value={money(Number(cuadre.egresos_efectivo_total ?? 0))} />
@@ -222,7 +234,7 @@ export default async function CierreDetailPage({ params }: Params) {
                     <div>
                       <p className="font-medium">{e.concepto}</p>
                       <p className="text-xs text-muted-foreground capitalize">
-                        {cat?.nombre ?? "—"} · {uni?.nombre ?? "—"} · {e.metodo_pago}
+                        {cat?.nombre ?? "—"} · {uni?.nombre ?? "—"}
                       </p>
                     </div>
                     <span className="tabular-nums font-medium">
