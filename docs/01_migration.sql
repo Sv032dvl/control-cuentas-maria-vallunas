@@ -203,6 +203,9 @@ SELECT
   cd.empleado_id,
   p.nombre AS empleado_nombre,
   cd.base_inicial,
+  cd.base_billetes,
+  cd.base_monedas,
+  cd.base_editado,
   -- Total ventas TPV (suma de líneas de venta)
   COALESCE(vp_sum.ventas_tpv, 0) AS ventas_tpv_total,
   -- Total ingresos digitales
@@ -211,15 +214,15 @@ SELECT
   COALESCE(eg_sum.egresos_efectivo, 0) AS egresos_efectivo_total,
   -- Total egresos en transferencia
   COALESCE(eg_sum.egresos_transferencia, 0) AS egresos_transferencia_total,
-  -- Efectivo contado en arqueo
-  COALESCE(ab_sum.efectivo_arqueo, 0) AS efectivo_arqueo,
+  -- Efectivo contado en arqueo = billetes + monedas
+  COALESCE(ab_sum.efectivo_arqueo, 0) + COALESCE(cd.arqueo_monedas, 0) AS efectivo_arqueo,
   -- Efectivo esperado = base_inicial + ventas_tpv - ingresos_digitales - egresos_efectivo
   cd.base_inicial
     + COALESCE(vp_sum.ventas_tpv, 0)
     - COALESCE(id_sum.ingresos_digitales, 0)
     - COALESCE(eg_sum.egresos_efectivo, 0) AS efectivo_esperado,
-  -- Diferencia = arqueo - esperado
-  COALESCE(ab_sum.efectivo_arqueo, 0)
+  -- Diferencia = arqueo total - esperado
+  (COALESCE(ab_sum.efectivo_arqueo, 0) + COALESCE(cd.arqueo_monedas, 0))
     - (cd.base_inicial
        + COALESCE(vp_sum.ventas_tpv, 0)
        - COALESCE(id_sum.ingresos_digitales, 0)
