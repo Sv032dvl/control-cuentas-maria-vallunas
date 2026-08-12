@@ -31,7 +31,7 @@ export default async function CierreDetailPage({ params }: Params) {
         .eq("cierre_id", id),
       supabase
         .from("ingresos_digitales")
-        .select("metodo, monto, descripcion")
+        .select("cuenta_digital_id, monto, descripcion, cuentas_digitales(nombre)")
         .eq("cierre_id", id),
       supabase
         .from("egresos")
@@ -199,7 +199,7 @@ export default async function CierreDetailPage({ params }: Params) {
                   className="flex items-center justify-between rounded-lg border bg-card px-3 py-2 text-sm"
                 >
                   <div>
-                    <p className="font-medium capitalize">{d.metodo}</p>
+                    <p className="font-medium">{d.cuentas_digitales?.nombre ?? "—"}</p>
                     {d.descripcion && (
                       <p className="text-xs text-muted-foreground">{d.descripcion}</p>
                     )}

@@ -289,26 +289,53 @@ export type Database = {
         }
         Relationships: []
       }
+      cuentas_digitales: {
+        Row: {
+          id: string
+          nombre: string
+          activo: boolean
+          es_datafono: boolean
+          orden: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          nombre: string
+          activo?: boolean
+          es_datafono?: boolean
+          orden?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          nombre?: string
+          activo?: boolean
+          es_datafono?: boolean
+          orden?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
       ingresos_digitales: {
         Row: {
           cierre_id: string
+          cuenta_digital_id: string
           descripcion: string | null
           id: string
-          metodo: string
           monto: number
         }
         Insert: {
           cierre_id: string
+          cuenta_digital_id: string
           descripcion?: string | null
           id?: string
-          metodo: string
           monto: number
         }
         Update: {
           cierre_id?: string
+          cuenta_digital_id?: string
           descripcion?: string | null
           id?: string
-          metodo?: string
           monto?: number
         }
         Relationships: [
@@ -331,6 +358,13 @@ export type Database = {
             columns: ["cierre_id"]
             isOneToOne: false
             referencedRelation: "v_cuadre_diario"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingresos_digitales_cuenta_digital_id_fkey"
+            columns: ["cuenta_digital_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_digitales"
             referencedColumns: ["id"]
           },
         ]

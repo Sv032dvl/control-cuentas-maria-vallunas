@@ -6,6 +6,7 @@ import { ProductosTable } from "@/features/catalogos/productos/productos-table";
 import { CategoriasTable } from "@/features/catalogos/categorias/categorias-table";
 import { UnidadesTable } from "@/features/catalogos/unidades/unidades-table";
 import { DenominacionesTable } from "@/features/catalogos/denominaciones/denominaciones-table";
+import { CuentasDigitalesTable } from "@/features/catalogos/cuentas-digitales/cuentas-digitales-table";
 import { LoyverseSyncPanel } from "@/features/catalogos/loyverse/loyverse-sync-panel";
 
 export const metadata: Metadata = { title: "Catálogos" };
@@ -19,6 +20,7 @@ export default async function CatalogosPage() {
     { data: categorias },
     { data: unidades },
     { data: denominaciones },
+    { data: cuentasDigitales },
     { data: pendientes },
   ] = await Promise.all([
     supabase
@@ -37,6 +39,11 @@ export default async function CatalogosPage() {
       .from("denominaciones_billete")
       .select("*")
       .order("valor", { ascending: true }),
+    supabase
+      .from("cuentas_digitales")
+      .select("*")
+      .order("orden")
+      .order("nombre"),
     supabase
       .from("sync_loyverse_pendientes")
       .select("*")
@@ -72,6 +79,9 @@ export default async function CatalogosPage() {
           <TabsTrigger value="denominaciones">
             Denominaciones ({denominaciones?.length ?? 0})
           </TabsTrigger>
+          <TabsTrigger value="cuentas-digitales">
+            Cuentas digitales ({cuentasDigitales?.length ?? 0})
+          </TabsTrigger>
           <TabsTrigger value="loyverse">
             Loyverse
             {(pendientes?.length ?? 0) > 0 && (
@@ -106,6 +116,10 @@ export default async function CatalogosPage() {
 
         <TabsContent value="denominaciones">
           <DenominacionesTable denominaciones={denominaciones ?? []} />
+        </TabsContent>
+
+        <TabsContent value="cuentas-digitales">
+          <CuentasDigitalesTable cuentas={cuentasDigitales ?? []} />
         </TabsContent>
       </Tabs>
     </div>

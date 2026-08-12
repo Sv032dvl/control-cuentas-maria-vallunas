@@ -35,6 +35,11 @@ const DenominacionSchema = z.object({
   valor: z.coerce.number().int("Debe ser un entero").positive("Debe ser mayor a 0"),
 });
 
+const CuentaDigitalSchema = z.object({
+  nombre: z.string().min(2, "Mínimo 2 caracteres").max(50, "Máximo 50 caracteres"),
+  es_datafono: z.coerce.boolean().default(false),
+});
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // PRODUCTOS
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -506,4 +511,132 @@ export async function eliminarDenominacionAction(
 
   revalidatePath(CATALOGOS_PATH);
   return { success: true, message: "Denominación eliminada" };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CUENTAS DIGITALES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export async function crearCuentaDigitalAction(
+  formData: FormData,
+): Promise<ActionResult> {
+  await requireRole("admin");
+
+  const parsed = CuentaDigitalSchema.safeParse({
+    nombre: formData.get("nombre"),
+    es_datafono: formData.get("es_datafono") === "true",
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("cuentas_digitales").insert(parsed.data);
+
+  if (error) {
+    console.error("[crearCuentaDigital]", error);
+    if (error.code === "23505") return { error: "Ya existe una cuenta de datáfono. Solo puede haber una." };
+    return { error: "Error al crear la cuenta digital" };
+  }
+
+  revalidatePath(CATALOGOS_PATH);
+  revalidatePath("/cierre");
+  return { success: true, message: `Cuenta "${parsed.data.nombre}" creada` };
+}
+
+export async function editarCuentaDigitalAction(
+  id: string,
+  formData: FormData,
+): Promise<ActionResult> {
+  await requireRole("admin");
+
+  const idParsed = z.string().uuid().safeParse(id);
+  if (!idParsed.success) return { error: "ID inválido" };
+
+  const parsed = CuentaDigitalSchema.safeParse({
+    nombre: formData.get("nombre"),
+    es_datafono: formData.get("es_datafono") === "true",
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("cuentas_digitales")
+    .update(parsed.data)
+    .eq("id", idParsed.data);
+
+  if (error) {
+    console.error("[editarCuentaDigital]", error);
+    if (error.code === "23505") return { error: "Ya existe una cuenta de datáfono. Solo puede haber una." };
+    return { error: "Error al actualizar la cuenta digital" };
+  }
+
+  revalidatePath(CATALOGOS_PATH);
+  revalidatePath("/cierre");
+  return { success: true, message: `Cuenta "${parsed.data.nombre}" actualizada` };
+}
+
+export async function toggleCuentaDigitalActivaAction(
+  id: string,
+  activo: boolean,
+): Promise<ActionResult> {
+  await requireRole("admin");
+
+  const parsed = z.string().uuid().safeParse(id);
+  if (!parsed.success) return { error: "ID inválido" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("cuentas_digitales")
+    .update({ activo })
+    .eq("id", parsed.data);
+
+  if (error) {
+    console.error("[toggleCuentaDigital]", error);
+    return { error: "Error al actualizar la cuenta digital" };
+  }
+
+  revalidatePath(CATALOGOS_PATH);
+  revalidatePath("/cierre");
+  return { success: true, message: activo ? "Cuenta activada" : "Cuenta desactivada" };
+}
+
+export async function eliminarCuentaDigitalAction(
+  id: string,
+): Promise<ActionResult> {
+  await requireRole("admin");
+
+  const parsed = z.string().uuid().safeParse(id);
+  if (!parsed.success) return { error: "ID inválido" };
+
+  const supabase = await createClient();
+
+  // Check for associated ingresos
+  const { count } = await supabase
+    .from("ingresos_digitales")
+    .select("id", { count: "exact", head: true })
+    .eq("cuenta_digital_id", parsed.data);
+
+  if (count && count > 0) {
+    return { error: `No se puede eliminar: tiene ${count} ingreso(s) asociado(s). Desactívala en su lugar.` };
+  }
+
+  const { error } = await supabase
+    .from("cuentas_digitales")
+    .delete()
+    .eq("id", parsed.data);
+
+  if (error) {
+    console.error("[eliminarCuentaDigital]", error);
+    if (error.code === "23503") return { error: "No se puede eliminar: tiene ingresos asociados" };
+    return { error: "Error al eliminar la cuenta digital" };
+  }
+
+  revalidatePath(CATALOGOS_PATH);
+  revalidatePath("/cierre");
+  return { success: true, message: "Cuenta digital eliminada" };
 }

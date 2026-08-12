@@ -16,17 +16,14 @@ import {
 import { MoneyInput } from "../components/money-input";
 import { money } from "@/lib/format";
 import type { CierreFormValues } from "../schema";
-import type { LoyverseData } from "../loaders";
+import type { CatalogCuentaDigital, LoyverseData } from "../loaders";
 
-const METODOS = [
-  { v: "nequi", label: "Nequi" },
-  { v: "transferencia", label: "Transferencia" },
-  { v: "datafono", label: "Datáfono" },
-] as const;
+type Props = {
+  cuentas: CatalogCuentaDigital[];
+  loyverseData: LoyverseData;
+};
 
-type Props = { loyverseData: LoyverseData };
-
-export function StepDigitales({ loyverseData }: Props) {
+export function StepDigitales({ cuentas, loyverseData }: Props) {
   const { control, watch, setValue } = useFormContext<CierreFormValues>();
   const { fields, append, remove } = useFieldArray({
     control,
@@ -45,7 +42,7 @@ export function StepDigitales({ loyverseData }: Props) {
           Ingresos digitales
         </h2>
         <p className="text-sm text-muted-foreground">
-          Pagos por Nequi, transferencia o datáfono.
+          Registra el total recibido en cada cuenta digital.
         </p>
         {loyverseData && loyverseData.totalDigital > 0 && (
           <div className="flex items-center gap-2 rounded-2xl border border-blue-200/70 bg-blue-50/80 dark:border-blue-800/40 dark:bg-blue-950/30 px-3.5 py-2.5 shadow-sm backdrop-blur-sm">
@@ -63,24 +60,22 @@ export function StepDigitales({ loyverseData }: Props) {
             <Card className="p-4 space-y-3 glass-panel rounded-2xl border-0">
               <div className="flex items-center gap-2">
                 <div className="flex-1">
-                  <Label className="text-xs">Método</Label>
+                  <Label className="text-xs">Cuenta</Label>
                   <Select
-                    value={digitales[idx]?.metodo}
+                    value={digitales[idx]?.cuenta_digital_id}
                     onValueChange={(v) =>
-                      setValue(
-                        `digitales.${idx}.metodo`,
-                        (v ?? "nequi") as "nequi" | "transferencia" | "datafono",
-                        { shouldDirty: true },
-                      )
+                      setValue(`digitales.${idx}.cuenta_digital_id`, v ?? "", {
+                        shouldDirty: true,
+                      })
                     }
                   >
                     <SelectTrigger className="h-10">
-                      <SelectValue placeholder="Selecciona…" />
+                      <SelectValue placeholder="Selecciona cuenta…" />
                     </SelectTrigger>
                     <SelectContent>
-                      {METODOS.map((m) => (
-                        <SelectItem key={m.v} value={m.v}>
-                          {m.label}
+                      {cuentas.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.nombre}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -134,7 +129,7 @@ export function StepDigitales({ loyverseData }: Props) {
         variant="outline"
         className="w-full h-12 rounded-2xl border-dashed border-2 hover:border-primary/40 hover:bg-primary/5 transition-all"
         onClick={() =>
-          append({ metodo: "nequi", monto: 0, descripcion: "" })
+          append({ cuenta_digital_id: "", monto: 0, descripcion: "" })
         }
       >
         <Plus className="size-4" /> Añadir ingreso

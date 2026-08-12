@@ -17,12 +17,17 @@ export type CatalogDenominacion = Pick<
   Tables<"denominaciones_billete">,
   "id" | "valor"
 >;
+export type CatalogCuentaDigital = Pick<
+  Tables<"cuentas_digitales">,
+  "id" | "nombre" | "es_datafono"
+>;
 
 export type Catalogos = {
   productos: CatalogProducto[];
   unidades: CatalogUnidad[];
   categorias: CatalogCategoria[];
   denominaciones: CatalogDenominacion[];
+  cuentas_digitales: CatalogCuentaDigital[];
 };
 
 export type CierreExistente = {
@@ -36,7 +41,7 @@ export type CierreExistente = {
   nota_diferencia: string | null;
   ventas: { producto_id: string; cantidad: number; precio_unitario: number }[];
   digitales: {
-    metodo: "nequi" | "transferencia" | "datafono";
+    cuenta_digital_id: string;
     monto: number;
     descripcion: string | null;
   }[];
@@ -53,7 +58,7 @@ export type CierreExistente = {
 
 export async function loadCatalogos(): Promise<Catalogos> {
   const supabase = await createClient();
-  const [productos, unidades, categorias, denominaciones] = await Promise.all([
+  const [productos, unidades, categorias, denominaciones, cuentas_digitales] = await Promise.all([
     supabase
       .from("productos")
       .select("id, nombre, precio, unidad_id, orden, multiplicador")
@@ -75,6 +80,12 @@ export async function loadCatalogos(): Promise<Catalogos> {
       .select("id, valor")
       .eq("activo", true)
       .order("valor"),
+    supabase
+      .from("cuentas_digitales")
+      .select("id, nombre, es_datafono")
+      .eq("activo", true)
+      .order("orden")
+      .order("nombre"),
   ]);
 
   return {
@@ -82,6 +93,7 @@ export async function loadCatalogos(): Promise<Catalogos> {
     unidades: unidades.data ?? [],
     categorias: categorias.data ?? [],
     denominaciones: denominaciones.data ?? [],
+    cuentas_digitales: cuentas_digitales.data ?? [],
   };
 }
 
@@ -104,7 +116,7 @@ export async function loadCierreByFecha(empleadoId: string, fecha: string): Prom
       .eq("cierre_id", cierre.id),
     supabase
       .from("ingresos_digitales")
-      .select("metodo, monto, descripcion")
+      .select("cuenta_digital_id, monto, descripcion")
       .eq("cierre_id", cierre.id),
     supabase
       .from("egresos")
@@ -132,7 +144,7 @@ export async function loadCierreByFecha(empleadoId: string, fecha: string): Prom
       precio_unitario: Number(v.precio_unitario),
     })),
     digitales: (digitales.data ?? []).map((d) => ({
-      metodo: d.metodo as "nequi" | "transferencia" | "datafono",
+      cuenta_digital_id: d.cuenta_digital_id,
       monto: Number(d.monto),
       descripcion: d.descripcion,
     })),
@@ -192,7 +204,6 @@ export type LoyverseVenta = {
 };
 
 export type LoyverseDigital = {
-  metodo: "datafono";
   monto: number;
   descripcion: string;
 };
@@ -274,7 +285,6 @@ export async function loadVentasLoyverse(fecha: string): Promise<LoyverseData> {
     const digitales: LoyverseDigital[] = [];
     if (totalDigital > 0) {
       digitales.push({
-        metodo: "datafono",
         monto: totalDigital,
         descripcion: "Pagos con tarjeta (Loyverse)",
       });

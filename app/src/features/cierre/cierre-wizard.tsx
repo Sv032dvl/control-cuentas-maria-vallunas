@@ -209,7 +209,10 @@ export function CierreWizard({ catalogos, existente, loyverseData, pizzaExistent
             />
           )}
           {step === 4 && (
-            <StepDigitales loyverseData={loyverseData} />
+            <StepDigitales
+              cuentas={catalogos.cuentas_digitales}
+              loyverseData={loyverseData}
+            />
           )}
           {step === 5 && <StepArqueo denominaciones={catalogos.denominaciones} />}
           {step === 6 && <StepResumen />}
@@ -382,7 +385,7 @@ function buildDefaults(
       pizza_notas: pizzaExistente?.notas ?? "",
       ventas: existente.ventas,
       digitales: existente.digitales.map((d) => ({
-        metodo: d.metodo,
+        cuenta_digital_id: d.cuenta_digital_id,
         monto: d.monto,
         descripcion: d.descripcion ?? "",
       })),
@@ -408,11 +411,14 @@ function buildDefaults(
     pizza_porciones_final: pizzaExistente?.porciones_final ?? 0,
     pizza_notas: pizzaExistente?.notas ?? "",
     ventas: [],
-    digitales: loyverseData?.digitales.map((d) => ({
-      metodo: d.metodo,
-      monto: d.monto,
-      descripcion: d.descripcion,
-    })) ?? [],
+    digitales: loyverseData?.digitales.map((d) => {
+      const cuentaDatafono = catalogos.cuentas_digitales.find((c) => c.es_datafono);
+      return {
+        cuenta_digital_id: cuentaDatafono?.id ?? "",
+        monto: d.monto,
+        descripcion: d.descripcion,
+      };
+    }) ?? [],
     egresos: [],
     arqueo,
     arqueo_monedas: 0,

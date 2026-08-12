@@ -93,10 +93,10 @@ export async function guardarCierre(
     }));
 
   const digRows = data.digitales
-    .filter((d) => d.monto > 0)
+    .filter((d) => d.monto > 0 && d.cuenta_digital_id)
     .map((d) => ({
       cierre_id: cierreId,
-      metodo: d.metodo,
+      cuenta_digital_id: d.cuenta_digital_id,
       monto: d.monto,
       descripcion: d.descripcion || null,
     }));
@@ -276,10 +276,10 @@ export async function guardarCierreDraft(
     }));
 
   const digRows = data.digitales
-    .filter((d) => d.monto > 0)
+    .filter((d) => d.monto > 0 && d.cuenta_digital_id)
     .map((d) => ({
       cierre_id: cierreId,
-      metodo: d.metodo,
+      cuenta_digital_id: d.cuenta_digital_id,
       monto: d.monto,
       descripcion: d.descripcion || null,
     }));

@@ -47,7 +47,7 @@ export const ventasStepSchema = z.object({
 });
 
 export const digitalLineSchema = z.object({
-  metodo: z.enum(["nequi", "transferencia", "datafono"]),
+  cuenta_digital_id: z.string().uuid("Selecciona cuenta"),
   monto: positiveMoney,
   descripcion: z.string().max(140).optional().or(z.literal("")),
 });
@@ -118,7 +118,7 @@ export const cierreDraftSchema = z.object({
     precio_unitario: draftMoney,
   })).default([]),
   digitales: z.array(z.object({
-    metodo: z.enum(["nequi", "transferencia", "datafono"]),
+    cuenta_digital_id: z.string().default(""),
     monto: draftMoney,
     descripcion: z.string().max(140).optional().or(z.literal("")),
   })).default([]),
