@@ -197,6 +197,7 @@ export function CierreWizard({ catalogos, existente, loyverseData, pizzaExistent
             <StepEgresos
               categorias={catalogos.categorias}
               unidades={catalogos.unidades}
+              onStructuralChange={autoSave.forceSaveNow}
             />
           )}
           {step === 3 && (

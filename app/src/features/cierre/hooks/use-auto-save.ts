@@ -30,6 +30,8 @@ type AutoSaveReturn = {
   restoreLocalDraft: () => void;
   discardLocalDraft: () => void;
   notifyManualSave: () => void;
+  /** Fuerza un guardado inmediato a DB (cancela debounce pendiente). */
+  forceSaveNow: () => void;
 };
 
 function storageKey(userId: string, fecha: string) {
@@ -134,7 +136,7 @@ export function useAutoSave({
     });
   }, [form, fecha, userId, cerrado, setStatus, setLastSavedAt]);
 
-  const [debouncedDbSave, cancelDbSave] = useDebouncedCallback(saveToDb, 30_000);
+  const [debouncedDbSave, cancelDbSave] = useDebouncedCallback(saveToDb, 8_000);
 
   // ─── Watch cambios del formulario → trigger ambos debounces ─────────────
   useEffect(() => {
@@ -236,6 +238,11 @@ export function useAutoSave({
     setLastSavedAt(new Date());
   }, [form, cancelDbSave, userId, fecha, setStatus, setLastSavedAt]);
 
+  const forceSaveNow = useCallback(() => {
+    cancelDbSave();
+    saveToDb();
+  }, [cancelDbSave, saveToDb]);
+
   return {
     status: isPending ? "saving" : statusRef.current,
     lastSavedAt: lastSavedAtRef.current,
@@ -243,5 +250,6 @@ export function useAutoSave({
     restoreLocalDraft,
     discardLocalDraft,
     notifyManualSave,
+    forceSaveNow,
   };
 }

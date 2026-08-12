@@ -265,15 +265,7 @@ export async function guardarCierreDraft(
   }
   const cierreId = cierre.id;
 
-  // Borrar hijos previos
-  await Promise.all([
-    supabase.from("ventas_producto").delete().eq("cierre_id", cierreId),
-    supabase.from("ingresos_digitales").delete().eq("cierre_id", cierreId),
-    supabase.from("egresos").delete().eq("cierre_id", cierreId),
-    supabase.from("arqueo_billetes").delete().eq("cierre_id", cierreId),
-  ]);
-
-  // Insertar hijos — filtrar filas incompletas
+  // Preparar filas hijas — filtrar filas incompletas
   const ventasRows = data.ventas
     .filter((v) => v.producto_id && v.cantidad > 0)
     .map((v) => ({
@@ -293,14 +285,14 @@ export async function guardarCierreDraft(
     }));
 
   const egrRows = data.egresos
-    .filter((e) => e.monto > 0 && e.concepto.length >= 2 && e.categoria_id && e.unidad_id)
+    .filter((e) => (e.concepto.length > 0 || e.monto > 0) && e.categoria_id && e.unidad_id)
     .map((e) => ({
       cierre_id: cierreId,
-      concepto: e.concepto,
+      concepto: e.concepto || "—",
       categoria_id: e.categoria_id,
       unidad_id: e.unidad_id,
-      monto: e.monto,
-      metodo_pago: "efectivo" as const,
+      monto: e.monto || 0,
+      metodo_pago: (e.metodo_pago || "efectivo") as "efectivo" | "transferencia",
     }));
 
   const arqRows = data.arqueo
@@ -312,19 +304,49 @@ export async function guardarCierreDraft(
       subtotal: a.cantidad * a.valor,
     }));
 
-  await Promise.all([
+  // Insert-before-delete: insertar primero, verificar éxito, luego borrar viejos.
+  // Esto evita pérdida de datos si el insert falla.
+  const inserts = await Promise.all([
     ventasRows.length
-      ? supabase.from("ventas_producto").insert(ventasRows)
-      : Promise.resolve({ error: null }),
+      ? supabase.from("ventas_producto").insert(ventasRows).select("id")
+      : Promise.resolve({ data: [] as { id: string }[], error: null }),
     digRows.length
-      ? supabase.from("ingresos_digitales").insert(digRows)
-      : Promise.resolve({ error: null }),
+      ? supabase.from("ingresos_digitales").insert(digRows).select("id")
+      : Promise.resolve({ data: [] as { id: string }[], error: null }),
     egrRows.length
-      ? supabase.from("egresos").insert(egrRows)
-      : Promise.resolve({ error: null }),
+      ? supabase.from("egresos").insert(egrRows).select("id")
+      : Promise.resolve({ data: [] as { id: string }[], error: null }),
     arqRows.length
-      ? supabase.from("arqueo_billetes").insert(arqRows)
-      : Promise.resolve({ error: null }),
+      ? supabase.from("arqueo_billetes").insert(arqRows).select("id")
+      : Promise.resolve({ data: [] as { id: string }[], error: null }),
+  ]);
+
+  const insertFailed = inserts.some((r) => r.error);
+  if (insertFailed) {
+    // Rollback: borrar las filas recién insertadas para no tener duplicados
+    const newVentaIds = (inserts[0].data ?? []).map((r) => r.id);
+    const newDigIds = (inserts[1].data ?? []).map((r) => r.id);
+    const newEgrIds = (inserts[2].data ?? []).map((r) => r.id);
+    const newArqIds = (inserts[3].data ?? []).map((r) => r.id);
+    await Promise.all([
+      newVentaIds.length ? supabase.from("ventas_producto").delete().in("id", newVentaIds) : null,
+      newDigIds.length ? supabase.from("ingresos_digitales").delete().in("id", newDigIds) : null,
+      newEgrIds.length ? supabase.from("egresos").delete().in("id", newEgrIds) : null,
+      newArqIds.length ? supabase.from("arqueo_billetes").delete().in("id", newArqIds) : null,
+    ]);
+    return { ok: false, error: "Error al guardar líneas del borrador" };
+  }
+
+  // Éxito: borrar filas viejas (las que NO son las recién insertadas)
+  const newVentaIds = (inserts[0].data ?? []).map((r) => r.id);
+  const newDigIds = (inserts[1].data ?? []).map((r) => r.id);
+  const newEgrIds = (inserts[2].data ?? []).map((r) => r.id);
+  const newArqIds = (inserts[3].data ?? []).map((r) => r.id);
+  await Promise.all([
+    supabase.from("ventas_producto").delete().eq("cierre_id", cierreId).not("id", "in", `(${newVentaIds.join(",")})`),
+    supabase.from("ingresos_digitales").delete().eq("cierre_id", cierreId).not("id", "in", `(${newDigIds.join(",")})`),
+    supabase.from("egresos").delete().eq("cierre_id", cierreId).not("id", "in", `(${newEgrIds.join(",")})`),
+    supabase.from("arqueo_billetes").delete().eq("cierre_id", cierreId).not("id", "in", `(${newArqIds.join(",")})`),
   ]);
 
   // Upsert inventario de pizza (draft — sin cruce de vendidas)

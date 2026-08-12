@@ -29,6 +29,8 @@ import type { CierreFormValues } from "../schema";
 type Props = {
   categorias: CatalogCategoria[];
   unidades: CatalogUnidad[];
+  /** Llamado al agregar/eliminar fila para forzar guardado inmediato a DB. */
+  onStructuralChange?: () => void;
 };
 
 /** Resuelve el nombre de un catálogo por su ID (evita que Base UI muestre el UUID). */
@@ -37,7 +39,7 @@ function resolveName(items: { id: string; nombre: string }[], id: string | undef
   return items.find((item) => item.id === id)?.nombre;
 }
 
-export function StepEgresos({ categorias, unidades }: Props) {
+export function StepEgresos({ categorias, unidades, onStructuralChange }: Props) {
   const { control, watch, setValue } = useFormContext<CierreFormValues>();
   const { fields, append, remove } = useFieldArray({
     control,
@@ -57,6 +59,14 @@ export function StepEgresos({ categorias, unidades }: Props) {
     });
     // Focus new row's concepto after render
     setTimeout(() => lastConceptoRef.current?.focus(), 50);
+    // Guardado inmediato para no perder la estructura
+    setTimeout(() => onStructuralChange?.(), 100);
+  }
+
+  function removeRow(idx: number) {
+    remove(idx);
+    // Guardado inmediato tras eliminar
+    setTimeout(() => onStructuralChange?.(), 100);
   }
 
   return (
@@ -178,7 +188,7 @@ export function StepEgresos({ categorias, unidades }: Props) {
                       <TableCell className="py-1.5 pr-2">
                         <button
                           type="button"
-                          onClick={() => remove(idx)}
+                          onClick={() => removeRow(idx)}
                           className="size-7 inline-flex items-center justify-center rounded-md text-muted-foreground/50 opacity-0 group-hover:opacity-100 hover:text-destructive hover:bg-destructive/10 transition-all"
                           aria-label="Eliminar"
                         >
@@ -221,7 +231,7 @@ export function StepEgresos({ categorias, unidades }: Props) {
                 categorias={categorias}
                 unidades={unidades}
                 setValue={setValue}
-                onRemove={() => remove(idx)}
+                onRemove={() => removeRow(idx)}
               />
             ))}
             <div className="flex items-center justify-between pt-1">
