@@ -49,9 +49,16 @@ export function QtySheet({
             onChange={onChangeQty}
           />
           {qty > 0 && (
-            <p className="text-sm font-medium tabular-nums">
-              Subtotal: <span className="text-primary">{money(subtotal)}</span>
-            </p>
+            <>
+              <p className="text-sm font-medium tabular-nums">
+                Subtotal: <span className="text-primary">{money(subtotal)}</span>
+              </p>
+              {(producto.multiplicador ?? 1) > 1 && (
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  Unidades consumidas: <span className="font-semibold text-foreground">{qty * producto.multiplicador}</span>
+                </p>
+              )}
+            </>
           )}
         </div>
 

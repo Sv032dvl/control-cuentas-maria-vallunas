@@ -393,6 +393,7 @@ export type Database = {
           activo: boolean
           id: string
           loyverse_item_id: string | null
+          multiplicador: number
           nombre: string
           orden: number | null
           precio: number
@@ -402,6 +403,7 @@ export type Database = {
           activo?: boolean
           id?: string
           loyverse_item_id?: string | null
+          multiplicador?: number
           nombre: string
           orden?: number | null
           precio: number
@@ -411,6 +413,7 @@ export type Database = {
           activo?: boolean
           id?: string
           loyverse_item_id?: string | null
+          multiplicador?: number
           nombre?: string
           orden?: number | null
           precio?: number

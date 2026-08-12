@@ -154,12 +154,12 @@ export async function guardarCierre(
     // Calcular porciones vendidas de productos de pizzería desde las ventas del cierre
     const { data: pizzaProds } = await supabase
       .from("productos")
-      .select("id")
+      .select("id, multiplicador")
       .eq("unidad_id", "75340370-d308-44ff-9cce-74bcfc0358ed"); // Pizzería
-    const pizzaIds = new Set((pizzaProds ?? []).map((p) => p.id));
+    const pizzaMap = new Map((pizzaProds ?? []).map((p) => [p.id, p.multiplicador ?? 1]));
     const porcionesVendidas = data.ventas
-      .filter((v) => pizzaIds.has(v.producto_id))
-      .reduce((acc, v) => acc + v.cantidad, 0);
+      .filter((v) => pizzaMap.has(v.producto_id))
+      .reduce((acc, v) => acc + v.cantidad * (pizzaMap.get(v.producto_id) ?? 1), 0);
 
     await supabase.from("inventario_pizza").upsert(
       {

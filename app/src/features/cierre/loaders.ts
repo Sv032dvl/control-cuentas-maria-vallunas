@@ -9,7 +9,7 @@ import type { Tables } from "@/lib/database.types";
 
 export type CatalogProducto = Pick<
   Tables<"productos">,
-  "id" | "nombre" | "precio" | "unidad_id" | "orden"
+  "id" | "nombre" | "precio" | "unidad_id" | "orden" | "multiplicador"
 >;
 export type CatalogUnidad = Pick<Tables<"unidades_negocio">, "id" | "nombre">;
 export type CatalogCategoria = Pick<Tables<"categorias_egreso">, "id" | "nombre">;
@@ -56,7 +56,7 @@ export async function loadCatalogos(): Promise<Catalogos> {
   const [productos, unidades, categorias, denominaciones] = await Promise.all([
     supabase
       .from("productos")
-      .select("id, nombre, precio, unidad_id, orden")
+      .select("id, nombre, precio, unidad_id, orden, multiplicador")
       .eq("activo", true)
       .order("orden")
       .order("nombre"),

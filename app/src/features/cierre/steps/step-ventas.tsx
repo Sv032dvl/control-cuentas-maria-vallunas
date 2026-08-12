@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import { useFormContext } from "react-hook-form";
 import {
   ShoppingBag,
@@ -73,7 +73,7 @@ export function StepVentas({ productos, unidades, loyverseData, fecha }: Props) 
     return s;
   }, [ventas]);
 
-  // Productos filtrados
+  // Productos filtrados (vista por categoría)
   const productosFiltrados = useMemo(() => {
     if (!selectedUnidad) {
       return productos.filter((p) => idsConVenta.has(p.id));
@@ -95,6 +95,23 @@ export function StepVentas({ productos, unidades, loyverseData, fecha }: Props) 
     return counts;
   }, [ventas, productos]);
 
+  // Subtotales por categoría (solo en vista "Venta")
+  const subtotalesPorCategoria = useMemo(() => {
+    if (selectedUnidad !== null) return null;
+    const map = new Map<string, { uds: number; venta: number; total: number }>();
+    for (const v of ventas) {
+      if (v.cantidad <= 0) continue;
+      const prod = productos.find((p) => p.id === v.producto_id);
+      if (!prod) continue;
+      const s = map.get(prod.unidad_id) ?? { uds: 0, venta: 0, total: 0 };
+      s.uds += v.cantidad * (prod.multiplicador ?? 1);
+      s.venta += v.cantidad;
+      s.total += v.cantidad * v.precio_unitario;
+      map.set(prod.unidad_id, s);
+    }
+    return map;
+  }, [ventas, productos, selectedUnidad]);
+
   function getCantidad(productoId: string): number {
     return ventas.find((v) => v.producto_id === productoId)?.cantidad ?? 0;
   }
@@ -111,6 +128,14 @@ export function StepVentas({ productos, unidades, loyverseData, fecha }: Props) 
     (acc, v) => acc + v.cantidad * v.precio_unitario,
     0,
   );
+
+  const totalUds = useMemo(() => {
+    return ventas.reduce((acc, v) => {
+      if (v.cantidad <= 0) return acc;
+      const prod = productos.find((p) => p.id === v.producto_id);
+      return acc + v.cantidad * (prod?.multiplicador ?? 1);
+    }, 0);
+  }, [ventas, productos]);
 
   const hasVentas = ventas.some((v) => v.cantidad > 0);
   const productosConVenta = ventas.filter((v) => v.cantidad > 0).length;
@@ -130,6 +155,140 @@ export function StepVentas({ productos, unidades, loyverseData, fecha }: Props) 
 
   const sheetQty = sheetProduct ? getCantidad(sheetProduct.id) : 0;
 
+  // Fila de producto — Desktop
+  function ProductRowDesktop({ p }: { p: CatalogProducto }) {
+    const qty = getCantidad(p.id);
+    const mult = p.multiplicador ?? 1;
+    const uds = qty * mult;
+    const rowTotal = qty * Number(p.precio);
+    const active = qty > 0;
+    return (
+      <TableRow
+        className={cn(
+          "group transition-colors cursor-pointer",
+          active
+            ? "bg-primary/5 hover:bg-primary/10"
+            : "hover:bg-muted/50",
+        )}
+        onClick={() => setSheetProduct(p)}
+      >
+        <TableCell className="overflow-hidden py-3">
+          <span className={cn(
+            "text-sm truncate block",
+            active ? "font-semibold" : "font-medium",
+          )}>
+            {p.nombre}
+          </span>
+        </TableCell>
+        <TableCell className="overflow-hidden py-3 text-right">
+          <span className={cn(
+            "text-sm tabular-nums",
+            active ? "font-semibold" : "text-muted-foreground/50",
+          )}>
+            {active ? uds : "—"}
+          </span>
+        </TableCell>
+        <TableCell className="overflow-hidden py-3 text-center">
+          <span className={cn(
+            "text-sm tabular-nums font-semibold",
+            active ? "text-primary" : "text-muted-foreground/50",
+          )}>
+            {qty || "—"}
+          </span>
+        </TableCell>
+        <TableCell className="overflow-hidden py-3 text-right">
+          <span className={cn(
+            "text-sm tabular-nums",
+            active ? "font-semibold" : "text-muted-foreground/50",
+          )}>
+            {active ? money(rowTotal) : "—"}
+          </span>
+        </TableCell>
+        <TableCell className="overflow-hidden py-3">
+          {active && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCantidad(p.id, 0, Number(p.precio));
+              }}
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </TableCell>
+      </TableRow>
+    );
+  }
+
+  // Fila de producto — Mobile
+  function ProductRowMobile({ p }: { p: CatalogProducto }) {
+    const qty = getCantidad(p.id);
+    const mult = p.multiplicador ?? 1;
+    const uds = qty * mult;
+    const rowTotal = qty * Number(p.precio);
+    const active = qty > 0;
+    return (
+      <li>
+        <button
+          type="button"
+          onClick={() => setSheetProduct(p)}
+          className={cn(
+            "w-full text-left rounded-xl px-3.5 py-3 transition-all",
+            active
+              ? "glass-panel ring-1 ring-primary/30 bg-primary/5"
+              : "glass-panel",
+          )}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className={cn(
+              "text-sm truncate",
+              active ? "font-semibold" : "font-medium",
+            )}>
+              {p.nombre}
+            </span>
+            {active && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCantidad(p.id, 0, Number(p.precio));
+                }}
+                className="p-1 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+            <span className="tabular-nums">{money(Number(p.precio))}</span>
+            <span>×</span>
+            <span className={cn(
+              "tabular-nums font-semibold",
+              active ? "text-primary" : "",
+            )}>
+              {qty || 0}
+            </span>
+            {active && (
+              <>
+                <span className="tabular-nums text-muted-foreground">
+                  ({uds} ud{uds !== 1 ? "s" : ""})
+                </span>
+                <span className="ml-auto tabular-nums font-semibold text-foreground">
+                  {money(rowTotal)}
+                </span>
+              </>
+            )}
+          </div>
+        </button>
+      </li>
+    );
+  }
+
+  // Vista agrupada (pill "Venta") vs vista plana (categoría específica)
+  const isGroupedView = selectedUnidad === null && hasVentas;
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -144,22 +303,8 @@ export function StepVentas({ productos, unidades, loyverseData, fecha }: Props) 
         </p>
       </div>
 
-      {/* Botón importar o banner con actualizar */}
-      {!hasVentas && loyverseData !== null ? (
-        <Button
-          type="button"
-          className="w-full h-12 rounded-2xl btn-gradient border-0 font-semibold text-base shadow-md"
-          onClick={handleImportar}
-          disabled={isPending}
-        >
-          {isPending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Download className="size-4" />
-          )}
-          Importar ventas del TPV
-        </Button>
-      ) : hasVentas ? (
+      {/* Botón importar / banner con actualizar — siempre visible */}
+      {hasVentas ? (
         <div className="flex items-center gap-2 rounded-2xl border border-blue-200/70 bg-blue-50/80 dark:border-blue-800/40 dark:bg-blue-950/30 px-3.5 py-2.5 shadow-sm backdrop-blur-sm">
           <Zap className="size-4 text-blue-600 dark:text-blue-400 shrink-0" />
           <p className="text-xs text-blue-700 dark:text-blue-300 flex-1">
@@ -181,7 +326,21 @@ export function StepVentas({ productos, unidades, loyverseData, fecha }: Props) 
             <span className="text-xs">Actualizar</span>
           </Button>
         </div>
-      ) : null}
+      ) : (
+        <Button
+          type="button"
+          className="w-full h-12 rounded-2xl btn-gradient border-0 font-semibold text-base shadow-md"
+          onClick={handleImportar}
+          disabled={isPending}
+        >
+          {isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Download className="size-4" />
+          )}
+          Importar ventas del TPV
+        </Button>
+      )}
 
       {/* Pills de categoría */}
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
@@ -226,146 +385,112 @@ export function StepVentas({ productos, unidades, loyverseData, fecha }: Props) 
         })}
       </div>
 
-      {/* Tabla de productos — Desktop */}
-      {productosFiltrados.length > 0 ? (
+      {/* ═══ DESKTOP TABLE ═══ */}
+      {(isGroupedView || productosFiltrados.length > 0) ? (
         <>
           <div className="hidden sm:block glass-panel rounded-2xl overflow-hidden">
             <Table className="table-fixed">
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-b border-border/50">
-                  <TableHead className="w-[40%] text-xs font-semibold">Artículo</TableHead>
-                  <TableHead className="w-[15%] text-xs font-semibold text-right">P. Unit</TableHead>
-                  <TableHead className="w-[20%] text-xs font-semibold text-center">Cantidad</TableHead>
-                  <TableHead className="w-[15%] text-xs font-semibold text-right">Total</TableHead>
-                  <TableHead className="w-[10%]" />
+                  <TableHead className="w-[35%] text-xs font-semibold">Artículo</TableHead>
+                  <TableHead className="w-[12%] text-xs font-semibold text-right">Uds</TableHead>
+                  <TableHead className="w-[18%] text-xs font-semibold text-center">Venta</TableHead>
+                  <TableHead className="w-[20%] text-xs font-semibold text-right">Total</TableHead>
+                  <TableHead className="w-[15%]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {productosFiltrados.map((p) => {
-                  const qty = getCantidad(p.id);
-                  const rowTotal = qty * Number(p.precio);
-                  const active = qty > 0;
-                  return (
-                    <TableRow
-                      key={p.id}
-                      className={cn(
-                        "group transition-colors cursor-pointer",
-                        active
-                          ? "bg-primary/5 hover:bg-primary/10"
-                          : "hover:bg-muted/50",
-                      )}
-                      onClick={() => setSheetProduct(p)}
-                    >
-                      <TableCell className="overflow-hidden py-3">
-                        <span className={cn(
-                          "text-sm truncate block",
-                          active ? "font-semibold" : "font-medium",
-                        )}>
-                          {p.nombre}
-                        </span>
-                      </TableCell>
-                      <TableCell className="overflow-hidden py-3 text-right">
-                        <span className="text-sm text-muted-foreground tabular-nums">
-                          {money(Number(p.precio))}
-                        </span>
-                      </TableCell>
-                      <TableCell className="overflow-hidden py-3 text-center">
-                        <span className={cn(
-                          "text-sm tabular-nums font-semibold",
-                          active ? "text-primary" : "text-muted-foreground/50",
-                        )}>
-                          {qty || "—"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="overflow-hidden py-3 text-right">
-                        <span className={cn(
-                          "text-sm tabular-nums",
-                          active ? "font-semibold" : "text-muted-foreground/50",
-                        )}>
-                          {active ? money(rowTotal) : "—"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="overflow-hidden py-3">
-                        {active && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCantidad(p.id, 0, Number(p.precio));
-                            }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-                          >
-                            <X className="size-3.5" />
-                          </button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {isGroupedView ? (
+                  // Vista agrupada con headers y subtotales por categoría
+                  grupos
+                    .filter(([uid]) => subtotalesPorCategoria?.has(uid))
+                    .map(([unidadId, prods]) => {
+                      const prodsConVenta = prods.filter((p) => idsConVenta.has(p.id));
+                      const sub = subtotalesPorCategoria!.get(unidadId)!;
+                      return (
+                        <Fragment key={unidadId}>
+                          {/* Header de categoría */}
+                          <TableRow className="hover:bg-transparent border-b-0">
+                            <TableCell
+                              colSpan={5}
+                              className="py-2 px-3 text-xs font-bold uppercase tracking-wider text-muted-foreground bg-muted/40"
+                            >
+                              {unidadById[unidadId] ?? "—"}
+                            </TableCell>
+                          </TableRow>
+                          {/* Filas de producto */}
+                          {prodsConVenta.map((p) => (
+                            <ProductRowDesktop key={p.id} p={p} />
+                          ))}
+                          {/* Subtotal */}
+                          <TableRow className="hover:bg-transparent border-t border-border/30 bg-muted/20">
+                            <TableCell className="py-2 text-xs font-semibold text-muted-foreground">
+                              Subtotal
+                            </TableCell>
+                            <TableCell className="py-2 text-right text-xs font-bold tabular-nums">
+                              {sub.uds}
+                            </TableCell>
+                            <TableCell className="py-2 text-center text-xs font-bold tabular-nums">
+                              {sub.venta}
+                            </TableCell>
+                            <TableCell className="py-2 text-right text-xs font-bold tabular-nums">
+                              {money(sub.total)}
+                            </TableCell>
+                            <TableCell />
+                          </TableRow>
+                        </Fragment>
+                      );
+                    })
+                ) : (
+                  // Vista plana (categoría específica)
+                  productosFiltrados.map((p) => (
+                    <ProductRowDesktop key={p.id} p={p} />
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
 
-          {/* Mobile rows */}
-          <ul className="sm:hidden space-y-1.5">
-            {productosFiltrados.map((p) => {
-              const qty = getCantidad(p.id);
-              const rowTotal = qty * Number(p.precio);
-              const active = qty > 0;
-              return (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSheetProduct(p)}
-                    className={cn(
-                      "w-full text-left rounded-xl px-3.5 py-3 transition-all",
-                      active
-                        ? "glass-panel ring-1 ring-primary/30 bg-primary/5"
-                        : "glass-panel",
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className={cn(
-                        "text-sm truncate",
-                        active ? "font-semibold" : "font-medium",
-                      )}>
-                        {p.nombre}
-                      </span>
-                      {active && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setCantidad(p.id, 0, Number(p.precio));
-                          }}
-                          className="p-1 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0"
-                        >
-                          <X className="size-3.5" />
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                      <span className="tabular-nums">{money(Number(p.precio))}</span>
-                      <span>×</span>
-                      <span className={cn(
-                        "tabular-nums font-semibold",
-                        active ? "text-primary" : "",
-                      )}>
-                        {qty || 0}
-                      </span>
-                      {active && (
-                        <>
-                          <span className="ml-auto tabular-nums font-semibold text-foreground">
-                            {money(rowTotal)}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          {/* ═══ MOBILE ROWS ═══ */}
+          {isGroupedView ? (
+            <ul className="sm:hidden space-y-1.5">
+              {grupos
+                .filter(([uid]) => subtotalesPorCategoria?.has(uid))
+                .map(([unidadId, prods]) => {
+                  const prodsConVenta = prods.filter((p) => idsConVenta.has(p.id));
+                  const sub = subtotalesPorCategoria!.get(unidadId)!;
+                  return (
+                    <Fragment key={unidadId}>
+                      {/* Header de categoría */}
+                      <li className="pt-3 pb-1 px-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        {unidadById[unidadId] ?? "—"}
+                      </li>
+                      {/* Filas de producto */}
+                      {prodsConVenta.map((p) => (
+                        <ProductRowMobile key={p.id} p={p} />
+                      ))}
+                      {/* Subtotal */}
+                      <li className="rounded-xl px-3.5 py-2.5 bg-muted/30 border border-border/30">
+                        <div className="flex items-center justify-between text-xs font-semibold">
+                          <span>Subtotal</span>
+                          <div className="flex gap-4 tabular-nums">
+                            <span>{sub.uds} uds</span>
+                            <span>{sub.venta} vtas</span>
+                            <span>{money(sub.total)}</span>
+                          </div>
+                        </div>
+                      </li>
+                    </Fragment>
+                  );
+                })}
+            </ul>
+          ) : (
+            <ul className="sm:hidden space-y-1.5">
+              {productosFiltrados.map((p) => (
+                <ProductRowMobile key={p.id} p={p} />
+              ))}
+            </ul>
+          )}
         </>
       ) : selectedUnidad === null ? (
         <div className="text-center py-10 text-sm text-muted-foreground glass-panel rounded-2xl">
@@ -378,9 +503,16 @@ export function StepVentas({ productos, unidades, loyverseData, fecha }: Props) 
       {/* Total sticky */}
       <div className="sticky bottom-20 md:bottom-4 z-10">
         <Card className="p-4 flex items-center justify-between total-card-gradient border-0 rounded-2xl">
-          <Badge variant="secondary" className="bg-primary-foreground/15 text-primary-foreground border-transparent">
-            Total ventas
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="bg-primary-foreground/15 text-primary-foreground border-transparent">
+              Total ventas
+            </Badge>
+            {totalUds > 0 && (
+              <span className="text-xs text-primary-foreground/70 tabular-nums">
+                {totalUds} uds
+              </span>
+            )}
+          </div>
           <span className="text-xl font-bold tabular-nums">{money(total)}</span>
         </Card>
       </div>
