@@ -9,8 +9,9 @@ type Props = {
   fecha: string; // YYYY-MM-DD
 };
 
-/** Máximo 2 días atrás desde hoy. */
-const MAX_DAYS_BACK = 2;
+/** Máximo días atrás desde hoy (temporalmente sin límite). */
+// TODO: volver a 2 cuando termine la carga de datos históricos
+const MAX_DAYS_BACK = 365;
 
 function addDays(dateStr: string, days: number) {
   const d = new Date(`${dateStr}T00:00:00`);

@@ -15,8 +15,9 @@ export const metadata: Metadata = {
   title: "Cierre del día",
 };
 
-/** Máximo 2 días atrás permitidos. */
-const MAX_DAYS_BACK = 2;
+/** Máximo días atrás permitidos (temporalmente sin límite para carga histórica). */
+// TODO: volver a 2 cuando termine la carga de datos históricos
+const MAX_DAYS_BACK = 365;
 
 function isValidFecha(fecha: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return false;
