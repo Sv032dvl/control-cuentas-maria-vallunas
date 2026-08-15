@@ -11,8 +11,10 @@ Sistema de **control de caja diario** para el negocio "María Vallunas". Permite
 - **Lenguaje**: TypeScript
 - **Estilos**: Tailwind CSS 4
 - **UI**: shadcn/ui + Base UI
+- **Animations**: Framer Motion (motion/react)
 - **Forms**: React Hook Form + Zod
 - **Data fetching**: TanStack React Query
+- **Auto-animate lists**: @formkit/auto-animate
 - **Auth + DB**: Supabase (PostgreSQL + Auth + RLS)
 - **Deploy**: Vercel
 
@@ -119,7 +121,8 @@ No existe super_admin ni otros roles.
 - `id`, `fecha`, `empleado_id`, `base_inicial`, `base_billetes`, `base_monedas`, `base_editado`, `ventas_tpv_total`, `efectivo_contado`, `ingresos_digitales_total`, `arqueo_monedas`, `efectivo_esperado`, `diferencia`, `cuadrado`, `nota_diferencia`, `estado` ('abierto'|'cerrado'), `created_at`, `updated_at`
 - Constraint: un cierre por empleado por día
 - `base_billetes` + `base_monedas` = `base_inicial` (desglose de la base)
-- `base_editado`: true si el empleado modificó la base tras confirmarla (visible al admin)
+- `base_editado`: true si el empleado modificó la base tras confirmarla (visible al admin con alerta amarilla)
+- `arqueo_monedas`: valor de monedas contadas, desglosado de `efectivo_contado` (billetes + monedas)
 
 **`ventas_producto`** — Líneas de venta (hijo de cierres_diarios)
 - `cierre_id`, `producto_id`, `cantidad`, `precio_unitario`, `total` (generado)
@@ -199,14 +202,15 @@ features/cierre/
 ├── hooks/
 │   └── use-auto-save.ts      ← Auto-guardado 3 capas (beforeunload + localStorage + DB)
 ├── components/
-│   ├── progress-steps.tsx     ← Indicador de progreso con navegación por pasos
-│   ├── date-selector.tsx      ← Navegación de fecha (±2 días máx)
-│   ├── money-input.tsx        ← Input de moneda con $ y formato miles (COP, sin decimales)
-│   ├── qty-stepper.tsx        ← Selector +/- con haptic feedback
-│   ├── qty-sheet.tsx          ← Bottom sheet para editar cantidad de producto
-│   ├── product-tile.tsx       ← Card de producto con soporte drag-n-drop
-│   ├── save-status.tsx        ← Indicador visual de estado de auto-guardado
-│   └── restore-draft-banner.tsx ← Banner para restaurar borrador local
+│   ├── progress-steps.tsx       ← Indicador de progreso con navegación por pasos
+│   ├── date-selector.tsx        ← Navegación de fecha (±2 días máx)
+│   ├── money-input.tsx          ← Input de moneda con $ y formato miles (COP, sin decimales)
+│   ├── qty-stepper.tsx          ← Selector +/- con haptic feedback
+│   ├── qty-sheet.tsx            ← Bottom sheet para editar cantidad de producto
+│   ├── product-tile.tsx         ← Card de producto con soporte drag-n-drop
+│   ├── save-status.tsx          ← Indicador visual de estado de auto-guardado
+│   ├── restore-draft-banner.tsx ← Banner para restaurar borrador local
+│   └── summary-panel.tsx        ← Panel lateral sticky con resumen en vivo (tablet+)
 └── steps/
     ├── step-base.tsx          ← Paso 1: Base inicial (billetes + monedas con confirmación)
     ├── step-pizza.tsx         ← Paso 2: Inventario pizza (ruedas, porciones, producción)
@@ -235,7 +239,7 @@ lib/hooks/
 
 **Props que recibe**:
 - `catalogos`: productos, unidades, categorías de egreso, denominaciones
-- `existente`: cierre previo (borrador o cerrado) para la fecha (incluye `updated_at`)
+- `existente`: cierre previo (borrador o cerrado) para la fecha (incluye `updated_at`, `arqueo_monedas`)
 - `loyverseData`: ventas y pagos digitales pre-cargados del TPV
 - `pizzaExistente`: inventario de pizza del día (`PizzaExistente | null`)
 - `fecha`: string YYYY-MM-DD
@@ -245,23 +249,30 @@ lib/hooks/
 - `step` (0-6): paso actual
 - `cerrado`: boolean, si ya está cerrado es read-only
 - `showConfirm`: dialog de confirmación si descuadrado
+- `totales`: computed cada cambio (cálculos en tiempo real)
+- `formValues`: watch completo del formulario (para SummaryPanel)
 
 **Lógica clave**:
-- `buildDefaults()`: prioridad → draft existente > datos Loyverse > vacío
-- `calcTotales()` se ejecuta en cada cambio (cálculos en tiempo real)
+- `buildDefaults()`: prioridad → draft existente > datos Loyverse > vacío (incluye `arqueo_monedas`)
+- `calcTotales()` se ejecuta en cada cambio (cálculos en tiempo real, separación billetes/monedas)
 - Validación por paso solo en pasos 0, 2 y 4 (base, egresos, digitales)
 - Footer sticky muestra diferencia en vivo (verde si cuadra, ámbar/rojo si no)
+- **Layout**: dos columnas (md+): wizard izquierda, `SummaryPanel` derecha
+
+**Problema resuelto: Fecha cambia**:
+- `useEffect` con `useRef` resetea form cuando `fecha` cambia (evita persistencia cross-date)
+- Dependencias en `use-auto-save.ts` actualizadas para fecha
 
 ### Detalle por paso
 
 | Paso | Componente | Descripción | Complejidad |
 |------|-----------|-------------|-------------|
-| 1 | `step-base.tsx` | Dos inputs (Billetes + Monedas) con auto-suma, alerta de confirmación, tracking de edición (`base_editado`). Admin ve si fue editada | Baja |
+| 1 | `step-base.tsx` | Dos inputs (Billetes + Monedas) con auto-suma, alerta de confirmación, tracking de edición (`base_editado`). Admin ve si fue editada con alerta amarilla | Baja |
 | 2 | `step-pizza.tsx` | Inventario de pizza: 3 secciones (Apertura, Producción, Cierre). QtyStepper para ruedas y porciones. Footer sticky con disponible/restante/consumidas. Nota opcional | Baja |
 | 3 | `step-egresos.tsx` | `useFieldArray` para gastos con concepto, categoría, unidad, monto y método de pago. Dos totales: efectivo y transferencia | Media |
 | 4 | `step-ventas.tsx` | Tabla spreadsheet filtrable por unidad (pills de categoría). Import de Loyverse. Bottom sheet para editar cantidades. Total sticky en footer | Media |
 | 5 | `step-digitales.tsx` | `useFieldArray` para Nequi/Transferencia/Datáfono. Pre-llenado con datáfono de Loyverse. Add/remove dinámico | Media |
-| 6 | `step-arqueo.tsx` | Grid de denominaciones con `QtyStepper` por cada una + MoneyInput para monedas. Subtotal por fila. Total contado (billetes + monedas) en footer sticky | Baja |
+| 6 | `step-arqueo.tsx` | Grid de denominaciones con `QtyStepper` por cada una + separación de monedas con `MoneyInput`. Subtotal por fila. Total contado (billetes + monedas) en footer sticky | Baja |
 | 7 | `step-resumen.tsx` | Tarjeta de cuadre (verde/rojo). Desglose: Base + Ventas - Digital - Egresos = Esperado. Alerta si \|diferencia\| > $10,000. Nota obligatoria si descuadrado (max 280 chars) | Baja |
 
 ### Step 4 (Ventas) — detalles adicionales
@@ -332,6 +343,24 @@ El wizard protege contra pérdida de datos con 3 capas combinadas en `hooks/use-
 - `RestoreDraftBanner`: después del ProgressSteps, ofrece restaurar o descartar borrador local
 
 **No hace auto-save si**: el cierre ya está cerrado (`cerrado === true`)
+
+### SummaryPanel (componente nuevo)
+
+Panel lateral sticky que muestra resumen en tiempo real mientras el empleado llena el wizard.
+
+**Props**:
+- `totales`: objeto calculado por `calcTotales()` (base, ventasTpv, digital, egresosEfectivo, arqueo, efectivoEsperado, diferencia, cuadrado)
+- `formValues`: valores actuales del formulario (watch completo)
+- `currentStep`: índice del paso actual (0-6)
+
+**Estructura**:
+- Fila por concepto: Base (+), Ventas (+), Digitales (-), Egresos (-), sep, Efectivo esperado, Arqueo, Diferencia
+- Active step destacado con `bg-primary/8 ring-1 ring-primary/20`
+- Diferencia color-coded: verde (cuadrado), ámbar (sobra), rojo (falta)
+- Detail text: "3 productos", "2 transacciones", "1 gasto"
+- Footer: ecuación "Esperado = Base + Ventas − Digital − Egresos"
+- Hidden en mobile (<md), visible en tablet/desktop (md+)
+- Glassmorphism styling (glass-panel class)
 
 ## Loyverse (TPV del establecimiento)
 
@@ -428,6 +457,20 @@ receipt
 - Patrón general: empleados acceden solo a sus propios registros del día actual; admin tiene acceso total (`ALL`).
 - Helper functions: `get_my_role()` y `is_my_cierre(cierre_id)` para las policies.
 
+## Layout por rol
+
+### Admin
+- Sidebar (navigation left side, desktop only)
+- Bottom nav (mobile only)
+- max-w-5xl container
+- Acceso a `/dashboard/*`, `/dashboard/catalogos`, `/dashboard/cierres`, `/dashboard/usuarios`, etc.
+
+### Empleado
+- **Sin sidebar ni bottom nav** (pantalla limpia, optimizada para tablet)
+- max-w-5xl container
+- Wizard de cierre con layout dos columnas (wizard left, SummaryPanel right en md+)
+- Acceso solo a `/cierre` (redirige a `/cierre` en login)
+
 ## Convenciones del código
 
 - Server Actions en archivos `actions.ts` dentro de cada feature
@@ -436,6 +479,42 @@ receipt
 - Componentes de UI en `components/ui/` (shadcn)
 - Layout components en `components/layout/`
 - Para eliminar registros con hijos, usar el patrón de eliminación manual de hijos antes del padre (no confiar en CASCADE vía PostgREST)
+- **Glassmorphism**: clases `glass-panel` y `btn-gradient` en `globals.css`
+- **Animations**: usar `motion/react` (Framer Motion) y `@formkit/auto-animate` para listas
+
+## Dashboard Admin — Estado actual y brechas
+
+### Qué ve el admin HOY
+
+- **KPIs de hoy**: Ventas TPV, Efectivo esperado, Digital, Diferencia (color-coded)
+- **Alertas TOP 5**: Últimos cierres descuadrados con magnitud
+- **Tabla cierres últimos 14 días**: Fecha | Empleado | Ventas | Digital | Arqueo | Diferencia | Estado
+- **Vista detalle por cierre**: Resumen completo, desglose de ventas, digitales, egresos, arqueo
+- **Gestión**: Productos, categorías, unidades, denominaciones, usuarios, sync Loyverse
+- **Eliminación bulk**: Multi-select de cierres con delete
+
+### Qué FALTA (según necesidades del dueño)
+
+| # | Módulo | Por qué | Prioridad |
+|----|--------|--------|-----------|
+| 1 | **Gráficas históricas** (ventas/día, egresos/día, diferencias trend) | Sin tendencias, navega a ciegas | 🔴 Alta |
+| 2 | **Rentabilidad por unidad** (v_rentabilidad_unidad existe pero no se usa) | Saber qué línea de negocio es rentable | 🔴 Alta |
+| 3 | **Merma de pizza** (inventario_pizza se captura pero es invisible) | Detectar pérdidas/robos en pizza | 🟠 Media |
+| 4 | **Resumen egresos** (por categoría, por empleado, por período) | Controlar gastos es crítico | 🟠 Media |
+| 5 | **Alertas inteligentes** (día sin cierre, merma alta, caída ventas, egreso inusual) | Supervisión proactiva | 🟠 Media |
+| 6 | **Resumen mensual/acumulados** (ventas $X, gastos $Y, utilidad $Z) | Cierre mensual del dueño | 🟠 Media |
+| 7 | **Exportación CSV/PDF** (reporte para contador, cruce bancario) | Integración con contabilidad | 🟡 Baja |
+| 8 | **Comparativo entre empleados** (quién vende más, quién descuadra más) | Benchmarking y gestión | 🟡 Baja |
+| 9 | **Facturas a proveedores** (código existe pero tabla no está en migration) | Gestión de compras | 🟡 Baja |
+
+### Datos ya capturados que no se muestran
+
+- `base_billetes` / `base_monedas` — Mostrados en detalle como desglose ✅
+- `base_editado` — Mostrado como alerta amarilla en detalle ✅
+- `arqueo_monedas` — Mostrado en detalle, separado de billetes ✅
+- `inventario_pizza` completo — **Invisible** (ruedas, porciones, merma)
+- `v_rentabilidad_unidad` — View SQL existe, nunca se renderiza
+- `egresos` detallado — Solo visible en detalle de cierre individual, no hay resumen cross-cierres
 
 ## graphify
 
