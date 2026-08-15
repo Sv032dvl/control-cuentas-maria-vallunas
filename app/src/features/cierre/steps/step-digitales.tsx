@@ -31,6 +31,7 @@ export function StepDigitales({ cuentas, loyverseData }: Props) {
   });
   const digitales = watch("digitales");
   const total = digitales.reduce((acc, d) => acc + (d.monto || 0), 0);
+  const cuentaItems = cuentas.map((c) => ({ value: c.id, label: c.nombre }));
 
   return (
     <div className="space-y-5">
@@ -62,6 +63,7 @@ export function StepDigitales({ cuentas, loyverseData }: Props) {
                 <div className="flex-1">
                   <Label className="text-xs">Cuenta</Label>
                   <Select
+                    items={cuentaItems}
                     value={digitales[idx]?.cuenta_digital_id}
                     onValueChange={(v) =>
                       setValue(`digitales.${idx}.cuenta_digital_id`, v ?? "", {
