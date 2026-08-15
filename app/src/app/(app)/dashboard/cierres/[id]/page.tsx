@@ -125,8 +125,8 @@ export default async function CierreDetailPage({ params }: Params) {
           )}
           <Row label="Ventas TPV" value={money(Number(cuadre.ventas_tpv_total ?? 0))} />
           <Row label="Digital" value={money(Number(cuadre.ingresos_digitales_total ?? 0))} />
-          <Row label="Egresos efectivo" value={money(Number(cuadre.egresos_efectivo_total ?? 0))} />
-          <Row label="Egresos transferencia" value={money(Number(cuadre.egresos_transferencia_total ?? 0))} />
+          <Row label="Gastos efectivo" value={money(Number(cuadre.egresos_efectivo_total ?? 0))} />
+          <Row label="Gastos transferencia" value={money(Number(cuadre.egresos_transferencia_total ?? 0))} />
           <Row label="Efectivo esperado" value={money(Number(cuadre.efectivo_esperado ?? 0))} bold />
           <Row label="Efectivo contado" value={money(Number(cuadre.efectivo_arqueo ?? 0))} bold />
         </Card>
@@ -214,9 +214,9 @@ export default async function CierreDetailPage({ params }: Params) {
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold">Egresos</h3>
+          <h3 className="text-sm font-semibold">Gastos</h3>
           {egrRows.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic">Sin egresos</p>
+            <p className="text-xs text-muted-foreground italic">Sin gastos</p>
           ) : (
             <ul className="space-y-1.5">
               {egrRows.map((e, i) => {

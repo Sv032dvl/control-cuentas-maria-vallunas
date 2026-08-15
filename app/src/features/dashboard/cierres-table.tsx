@@ -61,8 +61,8 @@ export function CierresTable({ rows }: { rows: CuadreRow[] }) {
     const count = ids.length;
     const msg =
       count === 1
-        ? "¿Eliminar este cierre? Se borrarán todas sus ventas, egresos e ingresos asociados."
-        : `¿Eliminar ${count} cierres? Se borrarán todas sus ventas, egresos e ingresos asociados.`;
+        ? "¿Eliminar este cierre? Se borrarán todas sus ventas, gastos e ingresos asociados."
+        : `¿Eliminar ${count} cierres? Se borrarán todas sus ventas, gastos e ingresos asociados.`;
 
     if (!confirm(msg)) return;
 

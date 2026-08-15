@@ -40,7 +40,7 @@ import type { Catalogos, CierreExistente, LoyverseData, PizzaExistente } from ".
 const STEPS: Step[] = [
   { id: "base", label: "Base inicial", short: "Base" },
   { id: "pizza", label: "Inventario pizza", short: "Pizza" },
-  { id: "egresos", label: "Egresos", short: "Egresos" },
+  { id: "egresos", label: "Gastos", short: "Gastos" },
   { id: "ventas", label: "Ventas", short: "Ventas" },
   { id: "digitales", label: "Ingresos digitales", short: "Digital" },
   { id: "arqueo", label: "Arqueo de caja", short: "Arqueo" },

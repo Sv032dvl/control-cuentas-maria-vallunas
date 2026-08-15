@@ -247,7 +247,7 @@ function CrearUnidadDialog() {
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Crear unidad de negocio</DialogTitle>
-          <DialogDescription>Agrega una nueva unidad para organizar productos y egresos.</DialogDescription>
+          <DialogDescription>Agrega una nueva unidad para organizar productos y gastos.</DialogDescription>
         </DialogHeader>
         <form ref={formRef} onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-1.5">

@@ -142,7 +142,7 @@ export function SummaryPanel({ totales, formValues, currentStep }: Props) {
 
       <SummaryRow
         icon={Receipt}
-        label="Egresos efectivo"
+        label="Gastos efectivo"
         value={totales.egresosEfectivo}
         detail={nEgresos > 0 ? `${nEgresos} gastos` : undefined}
         active={activeSection === "egresos"}
@@ -235,7 +235,7 @@ export function SummaryPanel({ totales, formValues, currentStep }: Props) {
       {/* Ecuación explicativa */}
       <div className="px-3 pt-2">
         <p className="text-[10px] text-muted-foreground/50 leading-relaxed">
-          Esperado = Base + Ventas − Digital − Egresos
+          Esperado = Base + Ventas − Digital − Gastos
         </p>
       </div>
     </div>

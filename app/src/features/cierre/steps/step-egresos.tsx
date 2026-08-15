@@ -76,7 +76,7 @@ export function StepEgresos({ categorias, unidades, onStructuralChange }: Props)
           <span className="flex items-center justify-center size-9 rounded-xl btn-gradient shadow-sm">
             <Receipt className="size-4 text-primary-foreground" />
           </span>
-          Egresos del día
+          Gastos del día
         </h2>
         <p className="text-sm text-muted-foreground">
           Gastos pagados desde la caja.
@@ -92,7 +92,7 @@ export function StepEgresos({ categorias, unidades, onStructuralChange }: Props)
             onClick={addRow}
             className="h-11 rounded-2xl border-dashed border-2 px-6"
           >
-            <Plus className="size-4" /> Añadir egreso
+            <Plus className="size-4" /> Añadir gasto
           </Button>
         </div>
       ) : (
@@ -209,7 +209,7 @@ export function StepEgresos({ categorias, unidades, onStructuralChange }: Props)
                       onClick={addRow}
                       className="h-8 text-xs text-muted-foreground hover:text-primary"
                     >
-                      <Plus className="size-3.5" /> Añadir egreso
+                      <Plus className="size-3.5" /> Añadir gasto
                     </Button>
                   </TableCell>
                   <TableCell className="py-2 text-right">

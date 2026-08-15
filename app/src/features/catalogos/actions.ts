@@ -266,7 +266,7 @@ export async function eliminarCategoriaAction(
 
   if (error) {
     console.error("[eliminarCategoria]", error);
-    if (error.code === "23503") return { error: "No se puede eliminar: tiene egresos asociados" };
+    if (error.code === "23503") return { error: "No se puede eliminar: tiene gastos asociados" };
     return { error: "Error al eliminar la categoría" };
   }
 

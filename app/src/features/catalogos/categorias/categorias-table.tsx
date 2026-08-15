@@ -170,7 +170,7 @@ function CategoriaRow({ categoria }: { categoria: Categoria }) {
             <DialogTitle>Eliminar categoría</DialogTitle>
             <DialogDescription>
               Se eliminará <strong>{categoria.nombre}</strong> permanentemente.
-              Si tiene egresos asociados, no se podrá eliminar.
+              Si tiene gastos asociados, no se podrá eliminar.
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2 justify-end mt-4">
@@ -232,8 +232,8 @@ function CrearCategoriaDialog() {
       />
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Crear categoría de egreso</DialogTitle>
-          <DialogDescription>Agrega una nueva categoría para clasificar egresos.</DialogDescription>
+          <DialogTitle>Crear categoría de gasto</DialogTitle>
+          <DialogDescription>Agrega una nueva categoría para clasificar gastos.</DialogDescription>
         </DialogHeader>
         <form ref={formRef} onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-1.5">

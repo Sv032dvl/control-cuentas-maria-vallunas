@@ -64,7 +64,7 @@ export function StepResumen() {
         <Row label="Base inicial" value={t.base} />
         <Row label="+ Ventas TPV" value={t.ventasTpv} positive />
         <Row label="− Ingresos digitales" value={t.digital} />
-        <Row label="− Egresos" value={t.egresosEfectivo} />
+        <Row label="− Gastos" value={t.egresosEfectivo} />
         <hr className="border-border my-1" />
         <Row label="= Efectivo esperado" value={t.efectivoEsperado} bold />
         <Row label="Arqueo (lo que contaste)" value={t.arqueo} bold />
