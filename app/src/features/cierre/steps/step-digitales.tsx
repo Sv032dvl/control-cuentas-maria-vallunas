@@ -74,7 +74,7 @@ export function StepDigitales({ cuentas, loyverseData }: Props) {
                     </SelectTrigger>
                     <SelectContent>
                       {cuentas.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
+                        <SelectItem key={c.id} value={c.id} label={c.nombre}>
                           {c.nombre}
                         </SelectItem>
                       ))}
