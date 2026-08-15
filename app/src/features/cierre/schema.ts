@@ -3,6 +3,7 @@
  * Cada paso del wizard usa una porción; el schema raíz se valida al guardar.
  */
 import { z } from "zod";
+import { UNIDAD_PIZZERIA_ID } from "@/lib/negocio";
 
 const money = z
   .number({ message: "Ingrese un número" })
@@ -191,4 +192,59 @@ export function calcPizza(v: Partial<CierreFormValues>) {
   const disponible = inicio + produccion;
   const consumidas = disponible - final_;
   return { inicio, produccion, disponible, restante: final_, consumidas };
+}
+
+/* ──────── Liquidación de Pizzería ────────
+   El negocio es una sola caja con dos propietarios. Esta función calcula
+   cuánto le corresponde al dueño de Pizzería en el día:
+
+     liquidación = ingresos de Pizzería − gastos de Pizzería
+
+   A diferencia de calcTotales(), necesita el catálogo: el formulario solo
+   guarda producto_id, y la unidad y el tipo de pizza viven en el producto.
+
+   Las adiciones de pizza (tipo_pizza null) suman a los ingresos pero no
+   se cuentan como pizzas vendidas.
+*/
+export type ProductoParaLiquidacion = {
+  id: string;
+  unidad_id: string | null;
+  multiplicador: number | null;
+  tipo_pizza: string | null;
+};
+
+export function calcPizzeria(
+  v: Partial<CierreFormValues>,
+  productos: ProductoParaLiquidacion[],
+) {
+  const porId = new Map(productos.map((p) => [p.id, p]));
+
+  let ingresos = 0;
+  let tradicionales = 0;
+  let especiales = 0;
+
+  for (const linea of v.ventas ?? []) {
+    const prod = porId.get(linea.producto_id);
+    if (!prod || prod.unidad_id !== UNIDAD_PIZZERIA_ID) continue;
+
+    ingresos += (linea.cantidad || 0) * (linea.precio_unitario || 0);
+
+    const unidades = (linea.cantidad || 0) * (prod.multiplicador ?? 1);
+    if (prod.tipo_pizza === "tradicional") tradicionales += unidades;
+    else if (prod.tipo_pizza === "especial") especiales += unidades;
+  }
+
+  const gastos =
+    v.egresos
+      ?.filter((e) => e.unidad_id === UNIDAD_PIZZERIA_ID)
+      .reduce((acc, e) => acc + (e.monto || 0), 0) ?? 0;
+
+  return {
+    ingresos,
+    gastos,
+    liquidacion: ingresos - gastos,
+    tradicionales,
+    especiales,
+    totalPizzas: tradicionales + especiales,
+  };
 }

@@ -9,9 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { money, moneyDecimal } from "@/lib/format";
 import { calcTotales } from "../schema";
 import { cn } from "@/lib/utils";
+import { LiquidacionPizzeriaCard } from "../components/liquidacion-pizzeria-card";
 import type { CierreFormValues } from "../schema";
+import type { CatalogProducto } from "../loaders";
 
-export function StepResumen() {
+export function StepResumen({ productos }: { productos: CatalogProducto[] }) {
   const { watch, setValue } = useFormContext<CierreFormValues>();
   const all = watch();
   const t = calcTotales(all);
@@ -69,6 +71,8 @@ export function StepResumen() {
         <Row label="= Efectivo esperado" value={t.efectivoEsperado} bold />
         <Row label="Arqueo (lo que contaste)" value={t.arqueo} bold />
       </Card>
+
+      <LiquidacionPizzeriaCard productos={productos} />
 
       {!t.cuadrado && Math.abs(t.diferencia) > 10000 && (
         <div className="flex items-start gap-2.5 rounded-2xl border border-amber-200/70 bg-amber-50/80 dark:border-amber-800/40 dark:bg-amber-950/30 px-4 py-3 shadow-sm backdrop-blur-sm">

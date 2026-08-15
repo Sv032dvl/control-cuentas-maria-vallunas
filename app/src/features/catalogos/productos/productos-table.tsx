@@ -39,6 +39,7 @@ import {
   eliminarProductoAction,
 } from "../actions";
 import type { Tables } from "@/lib/database.types";
+import { UNIDAD_PIZZERIA_ID, TIPOS_PIZZA } from "@/lib/negocio";
 
 type Producto = Tables<"productos">;
 type Unidad = Tables<"unidades_negocio">;
@@ -49,6 +50,53 @@ const UNIDAD_COLORS: Record<string, string> = {
   Bebidas: "bg-blue-100 text-blue-800",
   Compartido: "bg-purple-100 text-purple-800",
 };
+
+/**
+ * Selector tradicional/especial. Solo aplica a productos de Pizzería: la
+ * liquidación diaria del propietario reporta ambos conteos por separado.
+ * Los productos que no son pizza (adiciones) se dejan sin clasificar.
+ */
+function TipoPizzaPicker({
+  unidadId,
+  value,
+  onChange,
+  disabled,
+}: {
+  unidadId: string;
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  if (unidadId !== UNIDAD_PIZZERIA_ID) return null;
+
+  const opciones = [{ v: "", label: "No es pizza" }].concat(
+    TIPOS_PIZZA.map((t) => ({ v: t, label: t[0].toUpperCase() + t.slice(1) })),
+  );
+
+  return (
+    <div className="space-y-1.5">
+      <Label>Tipo de pizza</Label>
+      <div className="grid grid-cols-3 gap-2">
+        {opciones.map((o) => (
+          <button
+            key={o.v || "ninguno"}
+            type="button"
+            onClick={() => onChange(o.v)}
+            disabled={disabled}
+            className={[
+              "rounded-lg border-2 px-3 py-2 text-sm font-medium transition-colors",
+              value === o.v
+                ? "border-primary bg-primary/5 text-primary"
+                : "border-border text-muted-foreground hover:border-primary/50",
+            ].join(" ")}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   productos: (Producto & { unidades_negocio: { nombre: string } | null })[];
@@ -111,6 +159,7 @@ export function ProductosTable({ productos, unidades }: Props) {
               <TableHead>Nombre</TableHead>
               <TableHead>Precio</TableHead>
               <TableHead>Unidad</TableHead>
+              <TableHead>Tipo</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="w-[140px]">Acciones</TableHead>
             </TableRow>
@@ -121,7 +170,7 @@ export function ProductosTable({ productos, unidades }: Props) {
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground italic">
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground italic">
                   {search ? "Sin resultados" : "No hay productos. Crea el primero."}
                 </TableCell>
               </TableRow>
@@ -177,6 +226,15 @@ function ProductoRow({
           <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${colorClass}`}>
             {unidadNombre}
           </span>
+        </TableCell>
+        <TableCell>
+          {producto.tipo_pizza ? (
+            <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
+              {producto.tipo_pizza === "tradicional" ? "Tradicional" : "Especial"}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
+          )}
         </TableCell>
         <TableCell>
           <button
@@ -259,6 +317,7 @@ function ProductoRow({
 function CrearProductoDialog({ unidades }: { unidades: Unidad[] }) {
   const [open, setOpen] = useState(false);
   const [unidadId, setUnidadId] = useState("");
+  const [tipoPizza, setTipoPizza] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
@@ -268,6 +327,7 @@ function CrearProductoDialog({ unidades }: { unidades: Unidad[] }) {
     if (next) {
       formRef.current?.reset();
       setUnidadId(unidades[0]?.id ?? "");
+      setTipoPizza("");
       setError(null);
     }
   }
@@ -279,6 +339,7 @@ function CrearProductoDialog({ unidades }: { unidades: Unidad[] }) {
 
     const formData = new FormData(formRef.current);
     formData.set("unidad_id", unidadId);
+    formData.set("tipo_pizza", unidadId === UNIDAD_PIZZERIA_ID ? tipoPizza : "");
 
     startTransition(async () => {
       const result = await crearProductoAction(formData);
@@ -362,6 +423,13 @@ function CrearProductoDialog({ unidades }: { unidades: Unidad[] }) {
             </div>
           </div>
 
+          <TipoPizzaPicker
+            unidadId={unidadId}
+            value={tipoPizza}
+            onChange={setTipoPizza}
+            disabled={isPending}
+          />
+
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -398,6 +466,7 @@ function EditarProductoDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [unidadId, setUnidadId] = useState(producto.unidad_id);
+  const [tipoPizza, setTipoPizza] = useState(producto.tipo_pizza ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
@@ -406,6 +475,7 @@ function EditarProductoDialog({
     onOpenChange(next);
     if (next) {
       setUnidadId(producto.unidad_id);
+      setTipoPizza(producto.tipo_pizza ?? "");
       setError(null);
     }
   }
@@ -417,6 +487,7 @@ function EditarProductoDialog({
 
     const formData = new FormData(formRef.current);
     formData.set("unidad_id", unidadId);
+    formData.set("tipo_pizza", unidadId === UNIDAD_PIZZERIA_ID ? tipoPizza : "");
 
     startTransition(async () => {
       const result = await editarProductoAction(producto.id, formData);
@@ -490,6 +561,13 @@ function EditarProductoDialog({
               ))}
             </div>
           </div>
+
+          <TipoPizzaPicker
+            unidadId={unidadId}
+            value={tipoPizza}
+            onChange={setTipoPizza}
+            disabled={isPending}
+          />
 
           {error && (
             <Alert variant="destructive">

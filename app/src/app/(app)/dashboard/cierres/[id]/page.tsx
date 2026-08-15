@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, Pizza } from "lucide-react";
 import { requireRole } from "@/lib/supabase/session";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -22,7 +22,14 @@ export default async function CierreDetailPage({ params }: Params) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: cuadre }, { data: ventas }, { data: digitales }, { data: egresos }, { data: arqueo }] =
+  const [
+    { data: cuadre },
+    { data: ventas },
+    { data: digitales },
+    { data: egresos },
+    { data: arqueo },
+    { data: pizzeria },
+  ] =
     await Promise.all([
       supabase.from("v_cuadre_diario").select("*").eq("id", id).maybeSingle(),
       supabase
@@ -43,6 +50,14 @@ export default async function CierreDetailPage({ params }: Params) {
         .from("arqueo_billetes")
         .select("cantidad, denominaciones_billete(valor)")
         .eq("cierre_id", id),
+      // La liquidación vive en cierres_diarios, no en la vista de cuadre
+      supabase
+        .from("cierres_diarios")
+        .select(
+          "pizzeria_ingresos, pizzeria_gastos, pizzeria_liquidacion, pizzas_tradicionales, pizzas_especiales",
+        )
+        .eq("id", id)
+        .maybeSingle(),
     ]);
 
   if (!cuadre) return notFound();
@@ -152,6 +167,40 @@ export default async function CierreDetailPage({ params }: Params) {
             })
           )}
         </Card>
+
+        {pizzeria && (Number(pizzeria.pizzeria_ingresos ?? 0) > 0 ||
+          Number(pizzeria.pizzeria_gastos ?? 0) > 0) && (
+          <Card className="p-4 space-y-2 border-orange-200/70 bg-orange-50/50 dark:border-orange-800/40 dark:bg-orange-950/20">
+            <h3 className="text-sm font-semibold flex items-center gap-1.5">
+              <Pizza className="size-4 text-orange-600 dark:text-orange-400" />
+              Liquidación Pizzería
+            </h3>
+            <Row label="Ingresos" value={money(Number(pizzeria.pizzeria_ingresos ?? 0))} />
+            <Row label="Gastos" value={money(Number(pizzeria.pizzeria_gastos ?? 0))} />
+            <Row
+              label="Le corresponde"
+              value={money(Number(pizzeria.pizzeria_liquidacion ?? 0))}
+              bold
+            />
+            <hr className="border-orange-200/70 dark:border-orange-800/40 my-1" />
+            <Row
+              label="Pizzas vendidas"
+              value={String(
+                Number(pizzeria.pizzas_tradicionales ?? 0) +
+                  Number(pizzeria.pizzas_especiales ?? 0),
+              )}
+              bold
+            />
+            <Row
+              label="  Tradicionales"
+              value={String(Number(pizzeria.pizzas_tradicionales ?? 0))}
+            />
+            <Row
+              label="  Especiales"
+              value={String(Number(pizzeria.pizzas_especiales ?? 0))}
+            />
+          </Card>
+        )}
       </section>
 
       <section className="space-y-3">

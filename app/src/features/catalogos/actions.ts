@@ -21,6 +21,11 @@ const ProductoSchema = z.object({
   nombre: z.string().min(2, "Mínimo 2 caracteres").max(80, "Máximo 80 caracteres"),
   precio: z.coerce.number().min(0, "El precio debe ser >= 0"),
   unidad_id: z.string().uuid("Selecciona una unidad de negocio"),
+  // null = no es una pizza. Solo aplica a productos de la unidad Pizzería.
+  tipo_pizza: z.preprocess(
+    (v) => (v === "" || v == null ? null : v),
+    z.enum(["tradicional", "especial"]).nullable(),
+  ),
 });
 
 const CategoriaSchema = z.object({
@@ -53,6 +58,7 @@ export async function crearProductoAction(
     nombre: formData.get("nombre"),
     precio: formData.get("precio"),
     unidad_id: formData.get("unidad_id"),
+    tipo_pizza: formData.get("tipo_pizza"),
   });
 
   if (!parsed.success) {
@@ -85,6 +91,7 @@ export async function editarProductoAction(
     nombre: formData.get("nombre"),
     precio: formData.get("precio"),
     unidad_id: formData.get("unidad_id"),
+    tipo_pizza: formData.get("tipo_pizza"),
   });
 
   if (!parsed.success) {

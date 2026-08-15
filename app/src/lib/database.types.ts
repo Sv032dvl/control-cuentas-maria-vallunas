@@ -103,6 +103,11 @@ export type Database = {
           id: string
           ingresos_digitales_total: number
           nota_diferencia: string | null
+          pizzas_especiales: number
+          pizzas_tradicionales: number
+          pizzeria_gastos: number
+          pizzeria_ingresos: number
+          pizzeria_liquidacion: number | null
           updated_at: string
           ventas_tpv_total: number
         }
@@ -123,6 +128,11 @@ export type Database = {
           id?: string
           ingresos_digitales_total?: number
           nota_diferencia?: string | null
+          pizzas_especiales?: number
+          pizzas_tradicionales?: number
+          pizzeria_gastos?: number
+          pizzeria_ingresos?: number
+          pizzeria_liquidacion?: number | null
           updated_at?: string
           ventas_tpv_total?: number
         }
@@ -143,6 +153,11 @@ export type Database = {
           id?: string
           ingresos_digitales_total?: number
           nota_diferencia?: string | null
+          pizzas_especiales?: number
+          pizzas_tradicionales?: number
+          pizzeria_gastos?: number
+          pizzeria_ingresos?: number
+          pizzeria_liquidacion?: number | null
           updated_at?: string
           ventas_tpv_total?: number
         }
@@ -431,6 +446,7 @@ export type Database = {
           nombre: string
           orden: number | null
           precio: number
+          tipo_pizza: string | null
           unidad_id: string
         }
         Insert: {
@@ -441,6 +457,7 @@ export type Database = {
           nombre: string
           orden?: number | null
           precio: number
+          tipo_pizza?: string | null
           unidad_id: string
         }
         Update: {
@@ -451,6 +468,7 @@ export type Database = {
           nombre?: string
           orden?: number | null
           precio?: number
+          tipo_pizza?: string | null
           unidad_id?: string
         }
         Relationships: [

@@ -4,6 +4,24 @@
 
 Sistema de **control de caja diario** para el negocio "María Vallunas". Permite a empleados registrar el cierre de caja al final del día y a administradores supervisar los cierres, detectar descuadres y gestionar catálogos.
 
+## Dos propietarios — dato estructural del negocio
+
+**El negocio es una sola caja pero tiene dos propietarios.** Esto condiciona el diseño de reportes y liquidaciones:
+
+| Propietario | Unidades de negocio |
+|---|---|
+| **1** | Empanadas, Arepas, Bebidas/Limonadas |
+| **2** | Pizzería (incluye las adiciones de pizza) |
+
+El cierre diario calcula y persiste **cuánto le corresponde al propietario 2**: `pizzeria_ingresos − pizzeria_gastos`. Ver "Liquidación de Pizzería" más abajo.
+
+⚠️ **Estado real de las unidades** (verificado contra la DB, ago 2026) — no coincide con lo que sugiere el catálogo:
+
+- **Activas**: Empanadas, Pizzería
+- **Inactivas pero con ventas reales**: Arepas ($2.4M) y Bebidas ($0.9M) — juntas son ~20% de la facturación. Como `loadCatalogos()` filtra unidades por `activo = true`, no aparecen como chip de filtro en el paso de Ventas, aunque sus productos siguen activos y vendiéndose. Pendiente de decidir si se reactivan.
+- **Vacías**: Adiciones y Compartido (sus productos se movieron a Pizzería). La unidad `Compartido` se conserva porque `v_rentabilidad_unidad` la usa por nombre para prorratear gastos comunes.
+- Hoy **ningún gasto se registra como Compartido**: se reparten entre Empanadas y Pizzería directamente.
+
 ## Stack técnico
 
 - **Framework**: Next.js 16.2.6 (App Router, Turbopack)
@@ -119,6 +137,7 @@ No existe super_admin ni otros roles.
 
 **`cierres_diarios`** — Cierre de caja por día/empleado
 - `id`, `fecha`, `empleado_id`, `base_inicial`, `base_billetes`, `base_monedas`, `base_editado`, `ventas_tpv_total`, `efectivo_contado`, `ingresos_digitales_total`, `arqueo_monedas`, `efectivo_esperado`, `diferencia`, `cuadrado`, `nota_diferencia`, `estado` ('abierto'|'cerrado'), `created_at`, `updated_at`
+- Liquidación del propietario 2: `pizzeria_ingresos`, `pizzeria_gastos`, `pizzeria_liquidacion` (columna **generada** = ingresos − gastos), `pizzas_tradicionales`, `pizzas_especiales`
 - Constraint: un cierre por empleado por día
 - `base_billetes` + `base_monedas` = `base_inicial` (desglose de la base)
 - `base_editado`: true si el empleado modificó la base tras confirmarla (visible al admin con alerta amarilla)
@@ -128,7 +147,8 @@ No existe super_admin ni otros roles.
 - `cierre_id`, `producto_id`, `cantidad`, `precio_unitario`, `total` (generado)
 
 **`ingresos_digitales`** — Pagos digitales (hijo de cierres_diarios)
-- `cierre_id`, `metodo` ('nequi'|'transferencia'|'datafono'), `monto`, `descripcion`
+- `cierre_id`, `cuenta_digital_id` (FK a `cuentas_digitales`), `monto`, `descripcion`
+- El enum `metodo` ('nequi'|'transferencia'|'datafono') **ya no existe**: se reemplazó por cuentas administrables
 
 **`egresos`** — Gastos (hijo de cierres_diarios)
 - `cierre_id`, `concepto`, `categoria_id`, `unidad_id`, `monto`, `metodo_pago` ('efectivo'|'transferencia')
@@ -139,21 +159,23 @@ No existe super_admin ni otros roles.
 **`inventario_pizza`** — Inventario diario de pizza (independiente del cierre)
 - `id`, `fecha`, `empleado_id`, `ruedas_inicio`, `porciones_inicio`, `horneada`, `ruedas_final`, `porciones_final`, `porciones_vendidas_tpv`, `diferencia`, `notas`
 - Constraint: `UNIQUE(fecha)` — un solo registro por día (NO por empleado)
-- `porciones_vendidas_tpv`: calculado al cerrar, cruzando ventas de productos de la unidad Pizzería
+- `porciones_vendidas_tpv`: calculado al cerrar, contando ventas de productos con `tipo_pizza` no nulo. **Importante**: no basta filtrar por unidad Pizzería — las adiciones (queso extra, peperoni) viven en esa unidad pero no consumen porciones
 - `diferencia`: consumidas - porciones_vendidas_tpv (merma real)
 
 ### Catálogos
 
-- `productos` — Productos con precio, unidad y `loyverse_item_id` (vinculado al TPV)
+- `productos` — Precio, unidad, `loyverse_item_id` (vinculado al TPV), `multiplicador` (unidades consumidas por línea) y `tipo_pizza` ('tradicional'|'especial'|null)
 - `categorias_egreso` — Categorías de gasto
-- `unidades_negocio` — Unidades de negocio (Empanadas, Pizzeria, Bebidas, Arepas, Adiciones, Domicilios, Compartido)
+- `unidades_negocio` — Ver "Dos propietarios" arriba para el estado real de cada unidad
 - `denominaciones_billete` — Denominaciones de billetes
+- `cuentas_digitales` — Cuentas de pago digital administrables por el admin (`nombre`, `activo`, `es_datafono`, `orden`). Solo una puede tener `es_datafono = true` (índice único parcial) — es la que recibe los pagos con tarjeta importados de Loyverse
 - `sync_loyverse_pendientes` — Cambios detectados en Loyverse pendientes de aprobación del admin
 
 ### Vistas
 
-- `v_cuadre_diario` — Resumen de cierres con datos calculados
+- `v_cuadre_diario` — Resumen de cierres con datos calculados. **No incluye** las columnas `pizzeria_*`
 - `v_alertas_admin` — Cierres cerrados y descuadrados
+- `v_rentabilidad_unidad` — Rentabilidad por unidad/día: prorratea ingresos digitales y gastos "Compartido" según proporción de ventas. ⚠️ **Sin uso**: existe `loadRentabilidad()` en `features/dashboard/loaders.ts` pero no tiene ningún llamador y ninguna pantalla la renderiza
 
 ## Inventario de pizza
 
@@ -189,6 +211,24 @@ Diferencia = Efectivo Arqueo (contado) - Efectivo Esperado (calculado)
 Cuadrado = |Diferencia| < $1
 ```
 
+## Liquidación de Pizzería
+
+Como el negocio tiene dos propietarios, cada cierre calcula cuánto le corresponde al dueño de Pizzería:
+
+```
+Liquidación Pizzería = Ingresos Pizzería - Gastos Pizzería
+```
+
+- **Ingresos**: ventas de productos de la unidad Pizzería (incluye las adiciones de pizza)
+- **Gastos**: egresos con `unidad_id` de Pizzería, sin importar el método de pago
+- **Pizzas vendidas**: `cantidad × multiplicador`, agrupadas por `tipo_pizza`. Las adiciones (`tipo_pizza = null`) suman a los ingresos pero **no** se cuentan como pizzas
+
+`calcPizzeria(values, productos)` en `features/cierre/schema.ts` es la única implementación — a diferencia de `calcTotales()`, necesita el catálogo porque el formulario solo guarda `producto_id`.
+
+**Snapshot, no vista**: los valores se persisten en `cierres_diarios` al cerrar (mismo patrón que `porciones_vendidas_tpv`). Así una liquidación ya pagada no cambia si mañana el admin reclasifica una pizza. El wizard la calcula en vivo; el admin lee lo guardado.
+
+La constante `UNIDAD_PIZZERIA_ID` y los tipos de pizza viven en `lib/negocio.ts` (compartidos entre `cierre` y `catalogos`).
+
 ## Cierre de caja — Wizard (detalle completo)
 
 ### Estructura de archivos
@@ -196,7 +236,7 @@ Cuadrado = |Diferencia| < $1
 ```
 features/cierre/
 ├── cierre-wizard.tsx          ← Orquestador principal (React Hook Form + 7 pasos)
-├── schema.ts                  ← Zod schemas (estricto + draft) + calcTotales() + calcPizza()
+├── schema.ts                  ← Zod schemas (estricto + draft) + calcTotales() + calcPizza() + calcPizzeria()
 ├── actions.ts                 ← Server Actions (guardar, guardarDraft, importar Loyverse, reordenar)
 ├── loaders.ts                 ← Loaders server-side (catálogos, cierre existente, Loyverse, pizza)
 ├── hooks/
@@ -308,7 +348,7 @@ calcTotales() en cada cambio (cálculo en vivo)
 
 ### Server Actions (`actions.ts`)
 
-- **`guardarCierre(raw, cerrar, fecha?)`**: auth vía `createClient()` + DB vía `createAdminClient()` (bypasa RLS). Valida con Zod (schema estricto) → upsert `cierres_diarios` → delete hijos → insert hijos (solo rows con qty/monto > 0) → upsert `inventario_pizza` (con cálculo de vendidas TPV) → revalidate `/cierre` y `/dashboard`
+- **`guardarCierre(raw, cerrar, fecha?)`**: auth vía `createClient()` + DB vía `createAdminClient()` (bypasa RLS). Valida con Zod (schema estricto) → carga productos de Pizzería y calcula la liquidación → upsert `cierres_diarios` (incluye los campos `pizzeria_*`) → delete hijos → insert hijos (solo rows con qty/monto > 0) → upsert `inventario_pizza` (con cálculo de vendidas TPV, reutilizando la misma carga de productos) → revalidate `/cierre` y `/dashboard`
 - **`guardarCierreDraft(raw, fecha)`**: misma estrategia auth+admin. Valida con `cierreDraftSchema` (relajado) → upsert como `estado: 'abierto'` → delete/insert hijos (filtra incompletos) → upsert `inventario_pizza` (sin vendidas) → **NO revalidate** (evita re-render durante auto-save) → retorna `{ ok, cierreId, savedAt }`
 - **`importarVentasLoyverse(fecha)`**: llama `loadVentasLoyverse()` para importar bajo demanda
 - **`reorderProductosAction(orden[])`**: actualiza campo `orden` en tabla `productos`
@@ -442,8 +482,11 @@ receipt
   ```sql
   GRANT SELECT, INSERT, UPDATE, DELETE ON <tabla> TO service_role;
   ```
-- Tablas que ya tienen GRANT para `service_role`: `profiles`, `productos`, `unidades_negocio`, `sync_loyverse_pendientes`, `cierres_diarios`, `ventas_producto`, `ingresos_digitales`, `egresos`, `arqueo_billetes`.
-- **Pendiente de GRANT**: `inventario_pizza` — ejecutar `GRANT SELECT, INSERT, UPDATE, DELETE ON inventario_pizza TO service_role;`
+- Tablas que ya tienen GRANT para `service_role`: `profiles`, `productos`, `unidades_negocio`, `sync_loyverse_pendientes`, `cierres_diarios`, `ventas_producto`, `ingresos_digitales`, `egresos`, `arqueo_billetes`, `inventario_pizza`, `cuentas_digitales`.
+
+### RLS: `FOR ALL` no cubre INSERT
+
+Una policy `FOR ALL` con solo cláusula `USING` **no permite INSERT** — PostgreSQL exige `WITH CHECK` para inserciones. Si el admin recibe un error al crear un registro, revisar esto primero. El patrón correcto es separar en tres policies (`FOR INSERT ... WITH CHECK`, `FOR UPDATE ... USING + WITH CHECK`, `FOR DELETE ... USING`), como en `cuentas_digitales`.
 
 ### Eliminación de registros con tablas hijas
 
