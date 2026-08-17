@@ -368,6 +368,39 @@ export async function toggleUnidadActivaAction(
   return { success: true, message: activo ? "Unidad activada" : "Unidad desactivada" };
 }
 
+/**
+ * Controla si la unidad aparece en el selector del paso de Gastos.
+ * Solo las unidades que representan a un propietario reciben gastos;
+ * las de puro producto (Bebidas, Arepas…) no deben ensuciar ese selector.
+ */
+export async function toggleUnidadAceptaGastosAction(
+  id: string,
+  acepta_gastos: boolean,
+): Promise<ActionResult> {
+  await requireRole("admin");
+
+  const parsed = z.string().uuid().safeParse(id);
+  if (!parsed.success) return { error: "ID inválido" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("unidades_negocio")
+    .update({ acepta_gastos })
+    .eq("id", parsed.data);
+
+  if (error) {
+    console.error("[toggleUnidadAceptaGastos]", error);
+    return { error: "Error al actualizar la unidad" };
+  }
+
+  revalidatePath(CATALOGOS_PATH);
+  revalidatePath("/cierre");
+  return {
+    success: true,
+    message: acepta_gastos ? "La unidad ahora recibe gastos" : "La unidad ya no recibe gastos",
+  };
+}
+
 export async function eliminarUnidadAction(
   id: string,
   nombre: string,

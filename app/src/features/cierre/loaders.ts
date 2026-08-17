@@ -11,7 +11,10 @@ export type CatalogProducto = Pick<
   Tables<"productos">,
   "id" | "nombre" | "precio" | "unidad_id" | "orden" | "multiplicador" | "tipo_pizza"
 >;
-export type CatalogUnidad = Pick<Tables<"unidades_negocio">, "id" | "nombre">;
+export type CatalogUnidad = Pick<
+  Tables<"unidades_negocio">,
+  "id" | "nombre" | "acepta_gastos"
+>;
 export type CatalogCategoria = Pick<Tables<"categorias_egreso">, "id" | "nombre">;
 export type CatalogDenominacion = Pick<
   Tables<"denominaciones_billete">,
@@ -67,7 +70,7 @@ export async function loadCatalogos(): Promise<Catalogos> {
       .order("nombre"),
     supabase
       .from("unidades_negocio")
-      .select("id, nombre")
+      .select("id, nombre, acepta_gastos")
       .eq("activo", true)
       .order("nombre"),
     supabase

@@ -37,6 +37,7 @@ import {
   crearUnidadAction,
   editarUnidadAction,
   toggleUnidadActivaAction,
+  toggleUnidadAceptaGastosAction,
   eliminarUnidadAction,
 } from "../actions";
 import type { Tables } from "@/lib/database.types";
@@ -74,6 +75,7 @@ export function UnidadesTable({ unidades }: Props) {
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead>Recibe gastos</TableHead>
               <TableHead className="w-[140px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -83,7 +85,7 @@ export function UnidadesTable({ unidades }: Props) {
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground italic">
+                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground italic">
                   {search ? "Sin resultados" : "No hay unidades. Crea la primera."}
                 </TableCell>
               </TableRow>
@@ -104,6 +106,17 @@ function UnidadRow({ unidad }: { unidad: Unidad }) {
   function handleToggle() {
     startTransition(async () => {
       const result = await toggleUnidadActivaAction(unidad.id, !unidad.activo);
+      if (result.error) toast.error(result.error);
+      else toast.success(result.message);
+    });
+  }
+
+  function handleToggleGastos() {
+    startTransition(async () => {
+      const result = await toggleUnidadAceptaGastosAction(
+        unidad.id,
+        !unidad.acepta_gastos,
+      );
       if (result.error) toast.error(result.error);
       else toast.success(result.message);
     });
@@ -142,6 +155,24 @@ function UnidadRow({ unidad }: { unidad: Unidad }) {
             title={unidad.activo ? "Desactivar" : "Activar"}
           >
             {unidad.activo ? (
+              <ToggleRight className="size-5 text-green-600" />
+            ) : (
+              <ToggleLeft className="size-5" />
+            )}
+          </button>
+        </TableCell>
+        <TableCell>
+          <button
+            onClick={handleToggleGastos}
+            disabled={isPending}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            title={
+              unidad.acepta_gastos
+                ? "Quitar del selector de Gastos"
+                : "Mostrar en el selector de Gastos"
+            }
+          >
+            {unidad.acepta_gastos ? (
               <ToggleRight className="size-5 text-green-600" />
             ) : (
               <ToggleLeft className="size-5" />

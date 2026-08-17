@@ -49,6 +49,10 @@ export function StepEgresos({ categorias, unidades, onStructuralChange }: Props)
   const total = egresos.reduce((acc, e) => acc + (e.monto || 0), 0);
   const lastConceptoRef = useRef<HTMLInputElement>(null);
 
+  // Solo las unidades que representan a un propietario reciben gastos.
+  // `unidades` completo se sigue usando para resolver nombres de gastos ya guardados.
+  const unidadesGasto = unidades.filter((u) => u.acepta_gastos);
+
   function addRow() {
     append({
       concepto: "",
@@ -165,7 +169,7 @@ export function StepEgresos({ categorias, unidades, onStructuralChange }: Props)
                             <SelectValue placeholder="—">{uniName}</SelectValue>
                           </SelectTrigger>
                           <SelectContent>
-                            {unidades.map((u) => (
+                            {unidadesGasto.map((u) => (
                               <SelectItem key={u.id} value={u.id}>
                                 {u.nombre}
                               </SelectItem>
@@ -275,6 +279,7 @@ function MobileEgresoRow({
   const egreso = egresos[idx];
   const catName = resolveName(categorias, egreso?.categoria_id);
   const uniName = resolveName(unidades, egreso?.unidad_id);
+  const unidadesGasto = unidades.filter((u) => u.acepta_gastos);
 
   return (
     <div className="glass-panel rounded-xl p-3 space-y-2.5">
@@ -333,7 +338,7 @@ function MobileEgresoRow({
             <SelectValue placeholder="Unidad">{uniName}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            {unidades.map((u) => (
+            {unidadesGasto.map((u) => (
               <SelectItem key={u.id} value={u.id} className="text-sm">
                 {u.nombre}
               </SelectItem>

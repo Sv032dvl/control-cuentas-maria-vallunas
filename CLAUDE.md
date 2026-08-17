@@ -15,12 +15,23 @@ Sistema de **control de caja diario** para el negocio "María Vallunas". Permite
 
 El cierre diario calcula y persiste **cuánto le corresponde al propietario 2**: `pizzeria_ingresos − pizzeria_gastos`. Ver "Liquidación de Pizzería" más abajo.
 
-⚠️ **Estado real de las unidades** (verificado contra la DB, ago 2026) — no coincide con lo que sugiere el catálogo:
+### Las unidades tienen dos banderas independientes
 
-- **Activas**: Empanadas, Pizzería
-- **Inactivas pero con ventas reales**: Arepas ($2.4M) y Bebidas ($0.9M) — juntas son ~20% de la facturación. Como `loadCatalogos()` filtra unidades por `activo = true`, no aparecen como chip de filtro en el paso de Ventas, aunque sus productos siguen activos y vendiéndose. Pendiente de decidir si se reactivan.
-- **Vacías**: Adiciones y Compartido (sus productos se movieron a Pizzería). La unidad `Compartido` se conserva porque `v_rentabilidad_unidad` la usa por nombre para prorratear gastos comunes.
-- Hoy **ningún gasto se registra como Compartido**: se reparten entre Empanadas y Pizzería directamente.
+Una unidad de negocio cumple dos roles distintos y **no hay que confundirlos**:
+
+| Bandera | Qué controla |
+|---|---|
+| `activo` | Si la unidad está en uso. En el paso de **Ventas** los chips de filtro se derivan de los productos, así que una unidad sin productos no aparece aunque esté activa |
+| `acepta_gastos` | Si la unidad aparece en el selector del paso de **Gastos**. Solo `Empanadas` y `Pizzería` — son las dos entidades a las que se asignan gastos |
+
+Antes existía solo `activo`, y se desactivaban Arepas/Bebidas/Compartido para sacarlas del selector de Gastos. El efecto colateral era que también desaparecían del paso de Ventas pese a facturar ~20% del total. Por eso se separaron las banderas (ago 2026).
+
+**Al filtrar unidades, pregúntate cuál de los dos roles necesitas.** `step-egresos.tsx` filtra por `acepta_gastos` para las opciones del selector, pero conserva la lista completa para `resolveName()` — si no, los gastos históricos de una unidad deshabilitada mostrarían "—".
+
+**Otras notas:**
+- `Adiciones` y `Compartido` quedaron sin productos (se movieron a Pizzería). `Compartido` se conserva porque `v_rentabilidad_unidad` la usa por nombre para prorratear gastos comunes
+- Hoy **ningún gasto se registra como Compartido**: se reparten manualmente entre Empanadas y Pizzería
+- `Domicilios` sigue inactiva
 
 ## Stack técnico
 

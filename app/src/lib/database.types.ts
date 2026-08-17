@@ -609,16 +609,19 @@ export type Database = {
       }
       unidades_negocio: {
         Row: {
+          acepta_gastos: boolean
           activo: boolean
           id: string
           nombre: string
         }
         Insert: {
+          acepta_gastos?: boolean
           activo?: boolean
           id?: string
           nombre: string
         }
         Update: {
+          acepta_gastos?: boolean
           activo?: boolean
           id?: string
           nombre?: string
