@@ -215,7 +215,12 @@ export function CierreWizard({ catalogos, existente, loyverseData, pizzaExistent
             />
           )}
           {step === 5 && <StepArqueo denominaciones={catalogos.denominaciones} />}
-          {step === 6 && <StepResumen productos={catalogos.productos} />}
+          {step === 6 && (
+            <StepResumen
+              productos={catalogos.productos}
+              unidades={catalogos.unidades}
+            />
+          )}
         </div>
 
         {/* Footer fijo con acciones */}

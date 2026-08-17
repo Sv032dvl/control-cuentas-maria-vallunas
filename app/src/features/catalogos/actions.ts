@@ -401,6 +401,42 @@ export async function toggleUnidadAceptaGastosAction(
   };
 }
 
+/**
+ * Marca la unidad como recaudo para terceros: lo que se vende ahí lo cobra el
+ * negocio pero no es ingreso suyo (ej. domicilios, que son del mensajero).
+ * Se descuenta de las ventas del negocio pero sigue contando en el cuadre,
+ * porque esa plata sí entra a la caja.
+ */
+export async function toggleUnidadRecaudoTercerosAction(
+  id: string,
+  es_recaudo_terceros: boolean,
+): Promise<ActionResult> {
+  await requireRole("admin");
+
+  const parsed = z.string().uuid().safeParse(id);
+  if (!parsed.success) return { error: "ID inválido" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("unidades_negocio")
+    .update({ es_recaudo_terceros })
+    .eq("id", parsed.data);
+
+  if (error) {
+    console.error("[toggleUnidadRecaudoTerceros]", error);
+    return { error: "Error al actualizar la unidad" };
+  }
+
+  revalidatePath(CATALOGOS_PATH);
+  revalidatePath("/cierre");
+  return {
+    success: true,
+    message: es_recaudo_terceros
+      ? "No cuenta como venta del negocio"
+      : "Vuelve a contar como venta del negocio",
+  };
+}
+
 export async function eliminarUnidadAction(
   id: string,
   nombre: string,

@@ -23,6 +23,7 @@ Una unidad de negocio cumple dos roles distintos y **no hay que confundirlos**:
 |---|---|
 | `activo` | Si la unidad está en uso. En el paso de **Ventas** los chips de filtro se derivan de los productos, así que una unidad sin productos no aparece aunque esté activa |
 | `acepta_gastos` | Si la unidad aparece en el selector del paso de **Gastos**. Solo `Empanadas` y `Pizzería` — son las dos entidades a las que se asignan gastos |
+| `es_recaudo_terceros` | Si lo vendido ahí **no es ingreso del negocio**. Solo `Domicilios`. Ver "Recaudo para terceros" más abajo |
 
 Antes existía solo `activo`, y se desactivaban Arepas/Bebidas/Compartido para sacarlas del selector de Gastos. El efecto colateral era que también desaparecían del paso de Ventas pese a facturar ~20% del total. Por eso se separaron las banderas (ago 2026).
 
@@ -31,7 +32,18 @@ Antes existía solo `activo`, y se desactivaban Arepas/Bebidas/Compartido para s
 **Otras notas:**
 - `Adiciones` y `Compartido` quedaron sin productos (se movieron a Pizzería). `Compartido` se conserva porque `v_rentabilidad_unidad` la usa por nombre para prorratear gastos comunes
 - Hoy **ningún gasto se registra como Compartido**: se reparten manualmente entre Empanadas y Pizzería
-- `Domicilios` sigue inactiva
+
+## Recaudo para terceros (domicilios)
+
+El domicilio lo cobra el negocio dentro del mismo pago del pedido —verificado contra Loyverse: de 11 domicilios, 10 con tarjeta y 1 en efectivo, siempre en la misma transacción— pero **esa plata es del mensajero**: se recauda y se le liquida después.
+
+```
+Venta real del negocio = Ventas TPV − Recaudo para terceros
+```
+
+⚠️ **El cuadre de caja NO cambia.** Ese dinero sí entra a la caja, así que `calcTotales()` sigue contándolo íntegro. Si se descontara de las ventas sin descontarlo también del efectivo, el esperado bajaría sin que baje el efectivo real y aparecería un **sobrante fantasma**.
+
+Por eso el cálculo vive en `calcRecaudoTerceros()`, **separado de `calcTotales()`** — que no se toca. Se persiste en `cierres_diarios.recaudo_terceros_total` al cerrar y se muestra como desglose aparte, tanto en el resumen del wizard como en el detalle del admin.
 
 ## Stack técnico
 
@@ -149,6 +161,7 @@ No existe super_admin ni otros roles.
 **`cierres_diarios`** — Cierre de caja por día/empleado
 - `id`, `fecha`, `empleado_id`, `base_inicial`, `base_billetes`, `base_monedas`, `base_editado`, `ventas_tpv_total`, `efectivo_contado`, `ingresos_digitales_total`, `arqueo_monedas`, `efectivo_esperado`, `diferencia`, `cuadrado`, `nota_diferencia`, `estado` ('abierto'|'cerrado'), `created_at`, `updated_at`
 - Liquidación del propietario 2: `pizzeria_ingresos`, `pizzeria_gastos`, `pizzeria_liquidacion` (columna **generada** = ingresos − gastos), `pizzas_tradicionales`, `pizzas_especiales`
+- `recaudo_terceros_total`: plata cobrada que no es del negocio (domicilios). Se resta de las ventas pero **no** del cuadre
 - Constraint: un cierre por empleado por día
 - `base_billetes` + `base_monedas` = `base_inicial` (desglose de la base)
 - `base_editado`: true si el empleado modificó la base tras confirmarla (visible al admin con alerta amarilla)
@@ -247,7 +260,7 @@ La constante `UNIDAD_PIZZERIA_ID` y los tipos de pizza viven en `lib/negocio.ts`
 ```
 features/cierre/
 ├── cierre-wizard.tsx          ← Orquestador principal (React Hook Form + 7 pasos)
-├── schema.ts                  ← Zod schemas (estricto + draft) + calcTotales() + calcPizza() + calcPizzeria()
+├── schema.ts                  ← Zod schemas (estricto + draft) + calcTotales() + calcPizza() + calcPizzeria() + calcRecaudoTerceros()
 ├── actions.ts                 ← Server Actions (guardar, guardarDraft, importar Loyverse, reordenar)
 ├── loaders.ts                 ← Loaders server-side (catálogos, cierre existente, Loyverse, pizza)
 ├── hooks/

@@ -194,6 +194,40 @@ export function calcPizza(v: Partial<CierreFormValues>) {
   return { inicio, produccion, disponible, restante: final_, consumidas };
 }
 
+/* ──────── Recaudo para terceros ────────
+   El domicilio lo cobra el negocio junto con el pedido, pero esa plata es del
+   mensajero: se recauda hoy y se le liquida después.
+
+   Por eso NO se toca calcTotales(): el dinero sí entra a la caja y el cuadre
+   debe seguir contándolo. Lo que cambia es el reporte de ventas — ese monto
+   no es ingreso del negocio.
+*/
+export function calcRecaudoTerceros(
+  v: Partial<CierreFormValues>,
+  productos: { id: string; unidad_id: string | null }[],
+  unidades: { id: string; es_recaudo_terceros: boolean }[],
+) {
+  const unidadesRecaudo = new Set(
+    unidades.filter((u) => u.es_recaudo_terceros).map((u) => u.id),
+  );
+  const porId = new Map(productos.map((p) => [p.id, p]));
+
+  let recaudo = 0;
+  let ventasNegocio = 0;
+
+  for (const linea of v.ventas ?? []) {
+    const monto = (linea.cantidad || 0) * (linea.precio_unitario || 0);
+    const prod = porId.get(linea.producto_id);
+    if (prod && prod.unidad_id && unidadesRecaudo.has(prod.unidad_id)) {
+      recaudo += monto;
+    } else {
+      ventasNegocio += monto;
+    }
+  }
+
+  return { recaudo, ventasNegocio };
+}
+
 /* ──────── Liquidación de Pizzería ────────
    El negocio es una sola caja con dos propietarios. Esta función calcula
    cuánto le corresponde al dueño de Pizzería en el día:

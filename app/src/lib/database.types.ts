@@ -103,6 +103,7 @@ export type Database = {
           id: string
           ingresos_digitales_total: number
           nota_diferencia: string | null
+          recaudo_terceros_total: number
           pizzas_especiales: number
           pizzas_tradicionales: number
           pizzeria_gastos: number
@@ -128,6 +129,7 @@ export type Database = {
           id?: string
           ingresos_digitales_total?: number
           nota_diferencia?: string | null
+          recaudo_terceros_total?: number
           pizzas_especiales?: number
           pizzas_tradicionales?: number
           pizzeria_gastos?: number
@@ -153,6 +155,7 @@ export type Database = {
           id?: string
           ingresos_digitales_total?: number
           nota_diferencia?: string | null
+          recaudo_terceros_total?: number
           pizzas_especiales?: number
           pizzas_tradicionales?: number
           pizzeria_gastos?: number
@@ -611,18 +614,21 @@ export type Database = {
         Row: {
           acepta_gastos: boolean
           activo: boolean
+          es_recaudo_terceros: boolean
           id: string
           nombre: string
         }
         Insert: {
           acepta_gastos?: boolean
           activo?: boolean
+          es_recaudo_terceros?: boolean
           id?: string
           nombre: string
         }
         Update: {
           acepta_gastos?: boolean
           activo?: boolean
+          es_recaudo_terceros?: boolean
           id?: string
           nombre?: string
         }

@@ -38,6 +38,7 @@ import {
   editarUnidadAction,
   toggleUnidadActivaAction,
   toggleUnidadAceptaGastosAction,
+  toggleUnidadRecaudoTercerosAction,
   eliminarUnidadAction,
 } from "../actions";
 import type { Tables } from "@/lib/database.types";
@@ -76,6 +77,7 @@ export function UnidadesTable({ unidades }: Props) {
               <TableHead>Nombre</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Recibe gastos</TableHead>
+              <TableHead>No es venta</TableHead>
               <TableHead className="w-[140px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -85,7 +87,7 @@ export function UnidadesTable({ unidades }: Props) {
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground italic">
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground italic">
                   {search ? "Sin resultados" : "No hay unidades. Crea la primera."}
                 </TableCell>
               </TableRow>
@@ -116,6 +118,17 @@ function UnidadRow({ unidad }: { unidad: Unidad }) {
       const result = await toggleUnidadAceptaGastosAction(
         unidad.id,
         !unidad.acepta_gastos,
+      );
+      if (result.error) toast.error(result.error);
+      else toast.success(result.message);
+    });
+  }
+
+  function handleToggleRecaudo() {
+    startTransition(async () => {
+      const result = await toggleUnidadRecaudoTercerosAction(
+        unidad.id,
+        !unidad.es_recaudo_terceros,
       );
       if (result.error) toast.error(result.error);
       else toast.success(result.message);
@@ -174,6 +187,24 @@ function UnidadRow({ unidad }: { unidad: Unidad }) {
           >
             {unidad.acepta_gastos ? (
               <ToggleRight className="size-5 text-green-600" />
+            ) : (
+              <ToggleLeft className="size-5" />
+            )}
+          </button>
+        </TableCell>
+        <TableCell>
+          <button
+            onClick={handleToggleRecaudo}
+            disabled={isPending}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            title={
+              unidad.es_recaudo_terceros
+                ? "Se cobra pero no es ingreso del negocio (ej. domicilios)"
+                : "Cuenta como venta del negocio"
+            }
+          >
+            {unidad.es_recaudo_terceros ? (
+              <ToggleRight className="size-5 text-amber-600" />
             ) : (
               <ToggleLeft className="size-5" />
             )}

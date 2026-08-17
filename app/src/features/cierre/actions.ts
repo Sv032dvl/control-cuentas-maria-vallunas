@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { todayISO } from "@/lib/format";
-import { cierreFullSchema, cierreDraftSchema, calcTotales, calcPizza, calcPizzeria, PORCIONES_POR_RUEDA, type CierreFormValues } from "./schema";
+import { cierreFullSchema, cierreDraftSchema, calcTotales, calcPizza, calcPizzeria, calcRecaudoTerceros, PORCIONES_POR_RUEDA, type CierreFormValues } from "./schema";
 import { UNIDAD_PIZZERIA_ID } from "@/lib/negocio";
 import { loadVentasLoyverse, type LoyverseData } from "./loaders";
 
@@ -44,13 +44,14 @@ export async function guardarCierre(
   const fechaFinal = fecha ?? todayISO();
   const t = calcTotales(data);
 
-  // Productos de Pizzería: sirven tanto para la liquidación del propietario
-  // como para el conteo de porciones vendidas del inventario (paso 4).
-  const { data: prodsPizzeria } = await supabase
-    .from("productos")
-    .select("id, unidad_id, multiplicador, tipo_pizza")
-    .eq("unidad_id", UNIDAD_PIZZERIA_ID);
-  const liq = calcPizzeria(data, prodsPizzeria ?? []);
+  // Catálogo para los cálculos derivados: liquidación de Pizzería, recaudo de
+  // terceros y el conteo de porciones vendidas del inventario (paso 4).
+  const [{ data: prods }, { data: unids }] = await Promise.all([
+    supabase.from("productos").select("id, unidad_id, multiplicador, tipo_pizza"),
+    supabase.from("unidades_negocio").select("id, es_recaudo_terceros"),
+  ]);
+  const liq = calcPizzeria(data, prods ?? []);
+  const rec = calcRecaudoTerceros(data, prods ?? [], unids ?? []);
 
   // 1. Upsert cierre padre
   const { data: cierre, error: upErr } = await supabase
@@ -76,6 +77,7 @@ export async function guardarCierre(
         pizzeria_gastos: liq.gastos,
         pizzas_tradicionales: liq.tradicionales,
         pizzas_especiales: liq.especiales,
+        recaudo_terceros_total: rec.recaudo,
       },
       { onConflict: "fecha,empleado_id" },
     )
@@ -167,8 +169,8 @@ export async function guardarCierre(
     // Porciones vendidas: solo pizzas reales (tipo_pizza no nulo). Las adiciones
     // de la unidad Pizzería —queso extra, peperoni— no consumen porciones.
     const pizzaMap = new Map(
-      (prodsPizzeria ?? [])
-        .filter((p) => p.tipo_pizza !== null)
+      (prods ?? [])
+        .filter((p) => p.unidad_id === UNIDAD_PIZZERIA_ID && p.tipo_pizza !== null)
         .map((p) => [p.id, p.multiplicador ?? 1]),
     );
     const porcionesVendidas = data.ventas

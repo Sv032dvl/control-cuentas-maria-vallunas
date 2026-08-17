@@ -1,22 +1,29 @@
 "use client";
 
 import { useFormContext } from "react-hook-form";
-import { Calculator, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Calculator, AlertTriangle, CheckCircle2, Bike } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { money, moneyDecimal } from "@/lib/format";
-import { calcTotales } from "../schema";
+import { calcTotales, calcRecaudoTerceros } from "../schema";
 import { cn } from "@/lib/utils";
 import { LiquidacionPizzeriaCard } from "../components/liquidacion-pizzeria-card";
 import type { CierreFormValues } from "../schema";
-import type { CatalogProducto } from "../loaders";
+import type { CatalogProducto, CatalogUnidad } from "../loaders";
 
-export function StepResumen({ productos }: { productos: CatalogProducto[] }) {
+export function StepResumen({
+  productos,
+  unidades,
+}: {
+  productos: CatalogProducto[];
+  unidades: CatalogUnidad[];
+}) {
   const { watch, setValue } = useFormContext<CierreFormValues>();
   const all = watch();
   const t = calcTotales(all);
+  const rec = calcRecaudoTerceros(all, productos, unidades);
 
   return (
     <div className="space-y-5">
@@ -71,6 +78,24 @@ export function StepResumen({ productos }: { productos: CatalogProducto[] }) {
         <Row label="= Efectivo esperado" value={t.efectivoEsperado} bold />
         <Row label="Arqueo (lo que contaste)" value={t.arqueo} bold />
       </Card>
+
+      {rec.recaudo > 0 && (
+        <Card className="p-5 space-y-2.5 text-sm glass-panel rounded-2xl border-0">
+          <div className="flex items-center gap-2 mb-1">
+            <Bike className="size-4 text-muted-foreground" />
+            <h3 className="font-semibold">Ventas del negocio</h3>
+          </div>
+          <Row label="Total facturado" value={t.ventasTpv} />
+          <Row label="− Domicilios (del mensajero)" value={rec.recaudo} />
+          <hr className="border-border my-1" />
+          <Row label="= Venta real del negocio" value={rec.ventasNegocio} bold />
+          <p className="text-xs text-muted-foreground pt-1">
+            El domicilio lo cobras junto con el pedido, pero esa plata es del
+            mensajero. Sí entra a la caja —por eso cuenta en el cuadre de
+            arriba— pero no es venta del negocio.
+          </p>
+        </Card>
+      )}
 
       <LiquidacionPizzeriaCard productos={productos} />
 

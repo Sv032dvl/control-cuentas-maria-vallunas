@@ -54,7 +54,7 @@ export default async function CierreDetailPage({ params }: Params) {
       supabase
         .from("cierres_diarios")
         .select(
-          "pizzeria_ingresos, pizzeria_gastos, pizzeria_liquidacion, pizzas_tradicionales, pizzas_especiales",
+          "pizzeria_ingresos, pizzeria_gastos, pizzeria_liquidacion, pizzas_tradicionales, pizzas_especiales, recaudo_terceros_total",
         )
         .eq("id", id)
         .maybeSingle(),
@@ -139,6 +139,21 @@ export default async function CierreDetailPage({ params }: Params) {
             </div>
           )}
           <Row label="Ventas TPV" value={money(Number(cuadre.ventas_tpv_total ?? 0))} />
+          {Number(pizzeria?.recaudo_terceros_total ?? 0) > 0 && (
+            <>
+              <Row
+                label="  Domicilios (del mensajero)"
+                value={money(Number(pizzeria?.recaudo_terceros_total ?? 0))}
+              />
+              <Row
+                label="  Venta real del negocio"
+                value={money(
+                  Number(cuadre.ventas_tpv_total ?? 0) -
+                    Number(pizzeria?.recaudo_terceros_total ?? 0),
+                )}
+              />
+            </>
+          )}
           <Row label="Digital" value={money(Number(cuadre.ingresos_digitales_total ?? 0))} />
           <Row label="Gastos efectivo" value={money(Number(cuadre.egresos_efectivo_total ?? 0))} />
           <Row label="Gastos transferencia" value={money(Number(cuadre.egresos_transferencia_total ?? 0))} />
