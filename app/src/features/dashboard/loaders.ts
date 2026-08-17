@@ -127,3 +127,40 @@ export async function loadRentabilidad(dias = 30): Promise<RentabilidadRow[]> {
     rentabilidad_neta: Number(r.rentabilidad_neta ?? 0),
   }));
 }
+
+export type BaseInicial = {
+  fecha: string;
+  empleado_nombre: string | null;
+  base_billetes: number;
+  base_monedas: number;
+  base_inicial: number;
+  diferencia: number;
+  cuadrado: boolean;
+  estado: string;
+};
+
+export async function loadBaseInicialHistorico(dias = 60): Promise<BaseInicial[]> {
+  const supabase = await createClient();
+  const desde = new Date();
+  desde.setDate(desde.getDate() - dias);
+  const desdeISO = desde.toISOString().slice(0, 10);
+
+  const { data, error } = await supabase
+    .from("cierres_diarios")
+    .select("fecha, empleado_id, base_billetes, base_monedas, base_inicial, diferencia, cuadrado, estado, profiles(nombre)")
+    .gte("fecha", desdeISO)
+    .order("fecha", { ascending: true });
+
+  if (error) console.error("[loadBaseInicialHistorico]", error);
+
+  return (data ?? []).map((r: any) => ({
+    fecha: r.fecha ?? "",
+    empleado_nombre: r.profiles?.nombre || null,
+    base_billetes: Number(r.base_billetes ?? 0),
+    base_monedas: Number(r.base_monedas ?? 0),
+    base_inicial: Number(r.base_inicial ?? 0),
+    diferencia: Number(r.diferencia ?? 0),
+    cuadrado: Boolean(r.cuadrado),
+    estado: String(r.estado ?? ""),
+  }));
+}

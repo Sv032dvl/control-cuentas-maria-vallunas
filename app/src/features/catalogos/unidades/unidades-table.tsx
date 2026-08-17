@@ -39,6 +39,7 @@ import {
   toggleUnidadActivaAction,
   toggleUnidadAceptaGastosAction,
   toggleUnidadRecaudoTercerosAction,
+  asignarPropietarioUnidadAction,
   eliminarUnidadAction,
 } from "../actions";
 import type { Tables } from "@/lib/database.types";
@@ -75,6 +76,7 @@ export function UnidadesTable({ unidades }: Props) {
           <TableHeader>
             <TableRow>
               <TableHead>Nombre</TableHead>
+              <TableHead>Dueño</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Recibe gastos</TableHead>
               <TableHead>No es venta</TableHead>
@@ -87,7 +89,7 @@ export function UnidadesTable({ unidades }: Props) {
             ))}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground italic">
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground italic">
                   {search ? "Sin resultados" : "No hay unidades. Crea la primera."}
                 </TableCell>
               </TableRow>
@@ -119,6 +121,14 @@ function UnidadRow({ unidad }: { unidad: Unidad }) {
         unidad.id,
         !unidad.acepta_gastos,
       );
+      if (result.error) toast.error(result.error);
+      else toast.success(result.message);
+    });
+  }
+
+  function handlePropietario(valor: number | null) {
+    startTransition(async () => {
+      const result = await asignarPropietarioUnidadAction(unidad.id, valor);
       if (result.error) toast.error(result.error);
       else toast.success(result.message);
     });
@@ -159,6 +169,32 @@ function UnidadRow({ unidad }: { unidad: Unidad }) {
               </Badge>
             )}
           </span>
+        </TableCell>
+        <TableCell>
+          <div className="flex items-center gap-1">
+            {[
+              { v: 1 as const, label: "🥟" },
+              { v: 2 as const, label: "🍕" },
+              { v: null, label: "—" },
+            ].map((o) => (
+              <button
+                key={o.v ?? "ninguno"}
+                onClick={() => handlePropietario(o.v)}
+                disabled={isPending}
+                title={
+                  o.v === 1 ? "Empanadas" : o.v === 2 ? "Pizzería" : "Sin dueño"
+                }
+                className={[
+                  "rounded-md px-1.5 py-0.5 text-sm transition-colors",
+                  unidad.propietario === o.v
+                    ? "bg-primary/10 ring-1 ring-primary/40"
+                    : "opacity-40 hover:opacity-80",
+                ].join(" ")}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
         </TableCell>
         <TableCell>
           <button

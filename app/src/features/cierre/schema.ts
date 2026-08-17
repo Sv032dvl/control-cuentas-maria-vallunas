@@ -228,17 +228,21 @@ export function calcRecaudoTerceros(
   return { recaudo, ventasNegocio };
 }
 
-/* ──────── Liquidación de Pizzería ────────
-   El negocio es una sola caja con dos propietarios. Esta función calcula
-   cuánto le corresponde al dueño de Pizzería en el día:
+/* ──────── Liquidación por propietario ────────
+   El negocio es una sola caja con dos dueños:
+     1 → Empanadas (empanadas, arepas, bebidas)
+     2 → Pizzería  (pizza)
 
-     liquidación = ingresos de Pizzería − gastos de Pizzería
+   Para cada uno:  liquidación = sus ventas − sus gastos
+
+   Qué unidad es de quién lo dice `unidades_negocio.propietario`, así que
+   agregar o mover una unidad no requiere tocar este código.
 
    A diferencia de calcTotales(), necesita el catálogo: el formulario solo
    guarda producto_id, y la unidad y el tipo de pizza viven en el producto.
 
-   Las adiciones de pizza (tipo_pizza null) suman a los ingresos pero no
-   se cuentan como pizzas vendidas.
+   El conteo de pizzas sale del mismo recorrido; para el propietario 1 da
+   cero porque sus productos no tienen `tipo_pizza`.
 */
 export type ProductoParaLiquidacion = {
   id: string;
@@ -247,10 +251,15 @@ export type ProductoParaLiquidacion = {
   tipo_pizza: string | null;
 };
 
-export function calcPizzeria(
+export function calcLiquidacion(
   v: Partial<CierreFormValues>,
   productos: ProductoParaLiquidacion[],
+  unidades: { id: string; propietario: number | null }[],
+  propietario: number,
 ) {
+  const suyas = new Set(
+    unidades.filter((u) => u.propietario === propietario).map((u) => u.id),
+  );
   const porId = new Map(productos.map((p) => [p.id, p]));
 
   let ingresos = 0;
@@ -259,18 +268,18 @@ export function calcPizzeria(
 
   for (const linea of v.ventas ?? []) {
     const prod = porId.get(linea.producto_id);
-    if (!prod || prod.unidad_id !== UNIDAD_PIZZERIA_ID) continue;
+    if (!prod || !prod.unidad_id || !suyas.has(prod.unidad_id)) continue;
 
     ingresos += (linea.cantidad || 0) * (linea.precio_unitario || 0);
 
-    const unidades = (linea.cantidad || 0) * (prod.multiplicador ?? 1);
-    if (prod.tipo_pizza === "tradicional") tradicionales += unidades;
-    else if (prod.tipo_pizza === "especial") especiales += unidades;
+    const unids = (linea.cantidad || 0) * (prod.multiplicador ?? 1);
+    if (prod.tipo_pizza === "tradicional") tradicionales += unids;
+    else if (prod.tipo_pizza === "especial") especiales += unids;
   }
 
   const gastos =
     v.egresos
-      ?.filter((e) => e.unidad_id === UNIDAD_PIZZERIA_ID)
+      ?.filter((e) => e.unidad_id && suyas.has(e.unidad_id))
       .reduce((acc, e) => acc + (e.monto || 0), 0) ?? 0;
 
   return {

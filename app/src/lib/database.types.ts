@@ -97,6 +97,9 @@ export type Database = {
           diferencia: number
           efectivo_contado: number
           efectivo_esperado: number
+          empanadas_gastos: number
+          empanadas_ingresos: number
+          empanadas_liquidacion: number | null
           empleado_id: string
           estado: string
           fecha: string
@@ -123,6 +126,9 @@ export type Database = {
           diferencia?: number
           efectivo_contado?: number
           efectivo_esperado?: number
+          empanadas_gastos?: number
+          empanadas_ingresos?: number
+          empanadas_liquidacion?: number | null
           empleado_id: string
           estado?: string
           fecha: string
@@ -149,6 +155,9 @@ export type Database = {
           diferencia?: number
           efectivo_contado?: number
           efectivo_esperado?: number
+          empanadas_gastos?: number
+          empanadas_ingresos?: number
+          empanadas_liquidacion?: number | null
           empleado_id?: string
           estado?: string
           fecha?: string
@@ -617,6 +626,7 @@ export type Database = {
           es_recaudo_terceros: boolean
           id: string
           nombre: string
+          propietario: number | null
         }
         Insert: {
           acepta_gastos?: boolean
@@ -624,6 +634,7 @@ export type Database = {
           es_recaudo_terceros?: boolean
           id?: string
           nombre: string
+          propietario?: number | null
         }
         Update: {
           acepta_gastos?: boolean
@@ -631,6 +642,7 @@ export type Database = {
           es_recaudo_terceros?: boolean
           id?: string
           nombre?: string
+          propietario?: number | null
         }
         Relationships: []
       }

@@ -28,7 +28,7 @@ export default async function CierreDetailPage({ params }: Params) {
     { data: digitales },
     { data: egresos },
     { data: arqueo },
-    { data: pizzeria },
+    { data: liquidaciones },
   ] =
     await Promise.all([
       supabase.from("v_cuadre_diario").select("*").eq("id", id).maybeSingle(),
@@ -54,7 +54,7 @@ export default async function CierreDetailPage({ params }: Params) {
       supabase
         .from("cierres_diarios")
         .select(
-          "pizzeria_ingresos, pizzeria_gastos, pizzeria_liquidacion, pizzas_tradicionales, pizzas_especiales, recaudo_terceros_total",
+          "pizzeria_ingresos, pizzeria_gastos, pizzeria_liquidacion, pizzas_tradicionales, pizzas_especiales, recaudo_terceros_total, empanadas_ingresos, empanadas_gastos, empanadas_liquidacion",
         )
         .eq("id", id)
         .maybeSingle(),
@@ -139,17 +139,17 @@ export default async function CierreDetailPage({ params }: Params) {
             </div>
           )}
           <Row label="Ventas TPV" value={money(Number(cuadre.ventas_tpv_total ?? 0))} />
-          {Number(pizzeria?.recaudo_terceros_total ?? 0) > 0 && (
+          {Number(liquidaciones?.recaudo_terceros_total ?? 0) > 0 && (
             <>
               <Row
                 label="  Domicilios (del mensajero)"
-                value={money(Number(pizzeria?.recaudo_terceros_total ?? 0))}
+                value={money(Number(liquidaciones?.recaudo_terceros_total ?? 0))}
               />
               <Row
                 label="  Venta real del negocio"
                 value={money(
                   Number(cuadre.ventas_tpv_total ?? 0) -
-                    Number(pizzeria?.recaudo_terceros_total ?? 0),
+                    Number(liquidaciones?.recaudo_terceros_total ?? 0),
                 )}
               />
             </>
@@ -183,36 +183,56 @@ export default async function CierreDetailPage({ params }: Params) {
           )}
         </Card>
 
-        {pizzeria && (Number(pizzeria.pizzeria_ingresos ?? 0) > 0 ||
-          Number(pizzeria.pizzeria_gastos ?? 0) > 0) && (
+        {liquidaciones && (Number(liquidaciones.empanadas_ingresos ?? 0) > 0 ||
+          Number(liquidaciones.empanadas_gastos ?? 0) > 0) && (
+          <Card className="p-4 space-y-2">
+            <h3 className="text-sm font-semibold flex items-center gap-1.5">
+              <span>🥟</span>
+              Liquidación Empanadas
+            </h3>
+            <p className="text-xs text-muted-foreground -mt-1">
+              Empanadas, arepas y bebidas
+            </p>
+            <Row label="Ingresos" value={money(Number(liquidaciones.empanadas_ingresos ?? 0))} />
+            <Row label="Gastos" value={money(Number(liquidaciones.empanadas_gastos ?? 0))} />
+            <Row
+              label="Le corresponde"
+              value={money(Number(liquidaciones.empanadas_liquidacion ?? 0))}
+              bold
+            />
+          </Card>
+        )}
+
+        {liquidaciones && (Number(liquidaciones.pizzeria_ingresos ?? 0) > 0 ||
+          Number(liquidaciones.pizzeria_gastos ?? 0) > 0) && (
           <Card className="p-4 space-y-2 border-orange-200/70 bg-orange-50/50 dark:border-orange-800/40 dark:bg-orange-950/20">
             <h3 className="text-sm font-semibold flex items-center gap-1.5">
               <Pizza className="size-4 text-orange-600 dark:text-orange-400" />
               Liquidación Pizzería
             </h3>
-            <Row label="Ingresos" value={money(Number(pizzeria.pizzeria_ingresos ?? 0))} />
-            <Row label="Gastos" value={money(Number(pizzeria.pizzeria_gastos ?? 0))} />
+            <Row label="Ingresos" value={money(Number(liquidaciones.pizzeria_ingresos ?? 0))} />
+            <Row label="Gastos" value={money(Number(liquidaciones.pizzeria_gastos ?? 0))} />
             <Row
               label="Le corresponde"
-              value={money(Number(pizzeria.pizzeria_liquidacion ?? 0))}
+              value={money(Number(liquidaciones.pizzeria_liquidacion ?? 0))}
               bold
             />
             <hr className="border-orange-200/70 dark:border-orange-800/40 my-1" />
             <Row
               label="Pizzas vendidas"
               value={String(
-                Number(pizzeria.pizzas_tradicionales ?? 0) +
-                  Number(pizzeria.pizzas_especiales ?? 0),
+                Number(liquidaciones.pizzas_tradicionales ?? 0) +
+                  Number(liquidaciones.pizzas_especiales ?? 0),
               )}
               bold
             />
             <Row
               label="  Tradicionales"
-              value={String(Number(pizzeria.pizzas_tradicionales ?? 0))}
+              value={String(Number(liquidaciones.pizzas_tradicionales ?? 0))}
             />
             <Row
               label="  Especiales"
-              value={String(Number(pizzeria.pizzas_especiales ?? 0))}
+              value={String(Number(liquidaciones.pizzas_especiales ?? 0))}
             />
           </Card>
         )}

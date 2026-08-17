@@ -10,10 +10,12 @@ Sistema de **control de caja diario** para el negocio "María Vallunas". Permite
 
 | Propietario | Unidades de negocio |
 |---|---|
-| **1** | Empanadas, Arepas, Bebidas/Limonadas |
-| **2** | Pizzería (incluye las adiciones de pizza) |
+| **1 — Empanadas** | Empanadas, Arepas, Bebidas/Limonadas |
+| **2 — Pizzería** | Pizzería (incluye las adiciones de pizza) |
 
-El cierre diario calcula y persiste **cuánto le corresponde al propietario 2**: `pizzeria_ingresos − pizzeria_gastos`. Ver "Liquidación de Pizzería" más abajo.
+Cuando el usuario dice "Empanadas" como entidad de negocio, se refiere a **las tres unidades juntas**, no solo a la unidad Empanadas.
+
+El cierre diario calcula y persiste la liquidación de **ambos**. Ver "Liquidación por propietario" más abajo.
 
 ### Las unidades tienen dos banderas independientes
 
@@ -24,6 +26,7 @@ Una unidad de negocio cumple dos roles distintos y **no hay que confundirlos**:
 | `activo` | Si la unidad está en uso. En el paso de **Ventas** los chips de filtro se derivan de los productos, así que una unidad sin productos no aparece aunque esté activa |
 | `acepta_gastos` | Si la unidad aparece en el selector del paso de **Gastos**. Solo `Empanadas` y `Pizzería` — son las dos entidades a las que se asignan gastos |
 | `es_recaudo_terceros` | Si lo vendido ahí **no es ingreso del negocio**. Solo `Domicilios`. Ver "Recaudo para terceros" más abajo |
+| `propietario` | A cuál de los dos dueños pertenece (1, 2 o null). Define en qué liquidación diaria entran sus ventas y gastos |
 
 Antes existía solo `activo`, y se desactivaban Arepas/Bebidas/Compartido para sacarlas del selector de Gastos. El efecto colateral era que también desaparecían del paso de Ventas pese a facturar ~20% del total. Por eso se separaron las banderas (ago 2026).
 
@@ -160,7 +163,7 @@ No existe super_admin ni otros roles.
 
 **`cierres_diarios`** — Cierre de caja por día/empleado
 - `id`, `fecha`, `empleado_id`, `base_inicial`, `base_billetes`, `base_monedas`, `base_editado`, `ventas_tpv_total`, `efectivo_contado`, `ingresos_digitales_total`, `arqueo_monedas`, `efectivo_esperado`, `diferencia`, `cuadrado`, `nota_diferencia`, `estado` ('abierto'|'cerrado'), `created_at`, `updated_at`
-- Liquidación del propietario 2: `pizzeria_ingresos`, `pizzeria_gastos`, `pizzeria_liquidacion` (columna **generada** = ingresos − gastos), `pizzas_tradicionales`, `pizzas_especiales`
+- Liquidación por propietario: `empanadas_ingresos`/`empanadas_gastos`/`empanadas_liquidacion` y `pizzeria_ingresos`/`pizzeria_gastos`/`pizzeria_liquidacion` (las `*_liquidacion` son columnas **generadas** = ingresos − gastos), más `pizzas_tradicionales` y `pizzas_especiales`
 - `recaudo_terceros_total`: plata cobrada que no es del negocio (domicilios). Se resta de las ventas pero **no** del cuadre
 - Constraint: un cierre por empleado por día
 - `base_billetes` + `base_monedas` = `base_inicial` (desglose de la base)
@@ -235,23 +238,31 @@ Diferencia = Efectivo Arqueo (contado) - Efectivo Esperado (calculado)
 Cuadrado = |Diferencia| < $1
 ```
 
-## Liquidación de Pizzería
+## Liquidación por propietario
 
-Como el negocio tiene dos propietarios, cada cierre calcula cuánto le corresponde al dueño de Pizzería:
+Cada cierre calcula cuánto le corresponde a **cada uno de los dos dueños**:
 
 ```
-Liquidación Pizzería = Ingresos Pizzería - Gastos Pizzería
+Liquidación = sus ventas − sus gastos
 ```
 
-- **Ingresos**: ventas de productos de la unidad Pizzería (incluye las adiciones de pizza)
-- **Gastos**: egresos con `unidad_id` de Pizzería, sin importar el método de pago
-- **Pizzas vendidas**: `cantidad × multiplicador`, agrupadas por `tipo_pizza`. Las adiciones (`tipo_pizza = null`) suman a los ingresos pero **no** se cuentan como pizzas
+Qué unidad es de quién lo dice `unidades_negocio.propietario` (1, 2 o null), así que mover o agregar una unidad **no requiere tocar código**.
 
-`calcPizzeria(values, productos)` en `features/cierre/schema.ts` es la única implementación — a diferencia de `calcTotales()`, necesita el catálogo porque el formulario solo guarda `producto_id`.
+| Propietario | Unidades | Columnas en `cierres_diarios` |
+|---|---|---|
+| 1 — Empanadas | Empanadas, Arepas, Bebidas | `empanadas_ingresos`, `empanadas_gastos`, `empanadas_liquidacion` |
+| 2 — Pizzería | Pizzería | `pizzeria_ingresos`, `pizzeria_gastos`, `pizzeria_liquidacion` |
 
-**Snapshot, no vista**: los valores se persisten en `cierres_diarios` al cerrar (mismo patrón que `porciones_vendidas_tpv`). Así una liquidación ya pagada no cambia si mañana el admin reclasifica una pizza. El wizard la calcula en vivo; el admin lee lo guardado.
+⚠️ **Por qué la liquidación de Empanadas suma tres unidades**: Arepas y Bebidas tienen `acepta_gastos = false`, así que *todos* los costos del propietario 1 (nómina, insumos, desechables) están en el bucket de Empanadas. Contar solo las ventas de empanadas contra esos gastos lo subestimaría en ~$3.1M.
 
-La constante `UNIDAD_PIZZERIA_ID` y los tipos de pizza viven en `lib/negocio.ts` (compartidos entre `cierre` y `catalogos`).
+`calcLiquidacion(values, productos, unidades, propietario)` en `features/cierre/schema.ts` es la única implementación, para ambos dueños. A diferencia de `calcTotales()`, necesita el catálogo porque el formulario solo guarda `producto_id`.
+
+- **Pizzas vendidas**: `cantidad × multiplicador` agrupadas por `tipo_pizza`; sale del mismo recorrido y da cero para el propietario 1. Las adiciones (`tipo_pizza = null`) suman a los ingresos pero **no** cuentan como pizzas
+- **Fuera de ambas liquidaciones**: `Domicilios` (recaudo de terceros) y las unidades sin dueño
+
+**Snapshot, no vista**: los valores se persisten en `cierres_diarios` al cerrar (mismo patrón que `porciones_vendidas_tpv`). Así una liquidación ya pagada no cambia si mañana el admin reclasifica una pizza o mueve una unidad de dueño. El wizard la calcula en vivo; el admin lee lo guardado.
+
+`PROPIETARIOS`, `UNIDAD_PIZZERIA_ID` y los tipos de pizza viven en `lib/negocio.ts` (compartidos entre `cierre` y `catalogos`).
 
 ## Cierre de caja — Wizard (detalle completo)
 
@@ -260,7 +271,7 @@ La constante `UNIDAD_PIZZERIA_ID` y los tipos de pizza viven en `lib/negocio.ts`
 ```
 features/cierre/
 ├── cierre-wizard.tsx          ← Orquestador principal (React Hook Form + 7 pasos)
-├── schema.ts                  ← Zod schemas (estricto + draft) + calcTotales() + calcPizza() + calcPizzeria() + calcRecaudoTerceros()
+├── schema.ts                  ← Zod schemas (estricto + draft) + calcTotales() + calcPizza() + calcLiquidacion() + calcRecaudoTerceros()
 ├── actions.ts                 ← Server Actions (guardar, guardarDraft, importar Loyverse, reordenar)
 ├── loaders.ts                 ← Loaders server-side (catálogos, cierre existente, Loyverse, pizza)
 ├── hooks/

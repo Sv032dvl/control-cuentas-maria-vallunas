@@ -437,6 +437,38 @@ export async function toggleUnidadRecaudoTercerosAction(
   };
 }
 
+/**
+ * Asigna la unidad a uno de los dos dueños (1 = Empanadas, 2 = Pizzería) o a
+ * ninguno. De esto depende en qué liquidación diaria entran sus ventas y gastos.
+ */
+export async function asignarPropietarioUnidadAction(
+  id: string,
+  propietario: number | null,
+): Promise<ActionResult> {
+  await requireRole("admin");
+
+  const parsed = z.string().uuid().safeParse(id);
+  if (!parsed.success) return { error: "ID inválido" };
+
+  const propParsed = z.union([z.literal(1), z.literal(2), z.null()]).safeParse(propietario);
+  if (!propParsed.success) return { error: "Propietario inválido" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("unidades_negocio")
+    .update({ propietario: propParsed.data })
+    .eq("id", parsed.data);
+
+  if (error) {
+    console.error("[asignarPropietarioUnidad]", error);
+    return { error: "Error al actualizar la unidad" };
+  }
+
+  revalidatePath(CATALOGOS_PATH);
+  revalidatePath("/cierre");
+  return { success: true, message: "Propietario actualizado" };
+}
+
 export async function eliminarUnidadAction(
   id: string,
   nombre: string,

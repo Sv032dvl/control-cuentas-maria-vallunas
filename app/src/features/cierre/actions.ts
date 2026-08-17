@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { todayISO } from "@/lib/format";
-import { cierreFullSchema, cierreDraftSchema, calcTotales, calcPizza, calcPizzeria, calcRecaudoTerceros, PORCIONES_POR_RUEDA, type CierreFormValues } from "./schema";
+import { cierreFullSchema, cierreDraftSchema, calcTotales, calcPizza, calcLiquidacion, calcRecaudoTerceros, PORCIONES_POR_RUEDA, type CierreFormValues } from "./schema";
 import { UNIDAD_PIZZERIA_ID } from "@/lib/negocio";
 import { loadVentasLoyverse, type LoyverseData } from "./loaders";
 
@@ -48,9 +48,12 @@ export async function guardarCierre(
   // terceros y el conteo de porciones vendidas del inventario (paso 4).
   const [{ data: prods }, { data: unids }] = await Promise.all([
     supabase.from("productos").select("id, unidad_id, multiplicador, tipo_pizza"),
-    supabase.from("unidades_negocio").select("id, es_recaudo_terceros"),
+    supabase
+      .from("unidades_negocio")
+      .select("id, es_recaudo_terceros, propietario"),
   ]);
-  const liq = calcPizzeria(data, prods ?? []);
+  const empanadas = calcLiquidacion(data, prods ?? [], unids ?? [], 1);
+  const pizzeria = calcLiquidacion(data, prods ?? [], unids ?? [], 2);
   const rec = calcRecaudoTerceros(data, prods ?? [], unids ?? []);
 
   // 1. Upsert cierre padre
@@ -73,10 +76,12 @@ export async function guardarCierre(
         cuadrado: t.cuadrado,
         nota_diferencia: data.nota_diferencia || null,
         estado: cerrar ? "cerrado" : "abierto",
-        pizzeria_ingresos: liq.ingresos,
-        pizzeria_gastos: liq.gastos,
-        pizzas_tradicionales: liq.tradicionales,
-        pizzas_especiales: liq.especiales,
+        empanadas_ingresos: empanadas.ingresos,
+        empanadas_gastos: empanadas.gastos,
+        pizzeria_ingresos: pizzeria.ingresos,
+        pizzeria_gastos: pizzeria.gastos,
+        pizzas_tradicionales: pizzeria.tradicionales,
+        pizzas_especiales: pizzeria.especiales,
         recaudo_terceros_total: rec.recaudo,
       },
       { onConflict: "fecha,empleado_id" },
