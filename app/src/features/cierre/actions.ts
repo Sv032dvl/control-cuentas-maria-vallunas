@@ -46,14 +46,15 @@ export async function guardarCierre(
 
   // Catálogo para los cálculos derivados: liquidación de Pizzería, recaudo de
   // terceros y el conteo de porciones vendidas del inventario (paso 4).
-  const [{ data: prods }, { data: unids }] = await Promise.all([
+  const [{ data: prods }, { data: unids }, { data: ctas }] = await Promise.all([
     supabase.from("productos").select("id, unidad_id, multiplicador, tipo_pizza"),
     supabase
       .from("unidades_negocio")
       .select("id, es_recaudo_terceros, propietario"),
+    supabase.from("cuentas_digitales").select("id, propietario"),
   ]);
-  const empanadas = calcLiquidacion(data, prods ?? [], unids ?? [], 1);
-  const pizzeria = calcLiquidacion(data, prods ?? [], unids ?? [], 2);
+  const empanadas = calcLiquidacion(data, prods ?? [], unids ?? [], 1, ctas ?? []);
+  const pizzeria = calcLiquidacion(data, prods ?? [], unids ?? [], 2, ctas ?? []);
   const rec = calcRecaudoTerceros(data, prods ?? [], unids ?? []);
 
   // 1. Upsert cierre padre
@@ -78,8 +79,10 @@ export async function guardarCierre(
         estado: cerrar ? "cerrado" : "abierto",
         empanadas_ingresos: empanadas.ingresos,
         empanadas_gastos: empanadas.gastos,
+        empanadas_digital: empanadas.digital,
         pizzeria_ingresos: pizzeria.ingresos,
         pizzeria_gastos: pizzeria.gastos,
+        pizzeria_digital: pizzeria.digital,
         pizzas_tradicionales: pizzeria.tradicionales,
         pizzas_especiales: pizzeria.especiales,
         recaudo_terceros_total: rec.recaudo,

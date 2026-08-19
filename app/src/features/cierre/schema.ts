@@ -256,6 +256,7 @@ export function calcLiquidacion(
   productos: ProductoParaLiquidacion[],
   unidades: { id: string; propietario: number | null }[],
   propietario: number,
+  cuentas: CuentaParaLiquidacion[] = [],
 ) {
   const suyas = new Set(
     unidades.filter((u) => u.propietario === propietario).map((u) => u.id),
@@ -277,10 +278,16 @@ export function calcLiquidacion(
     else if (prod.tipo_pizza === "especial") especiales += unids;
   }
 
-  const gastos =
-    v.egresos
-      ?.filter((e) => e.unidad_id && suyas.has(e.unidad_id))
-      .reduce((acc, e) => acc + (e.monto || 0), 0) ?? 0;
+  const susEgresos = v.egresos?.filter((e) => e.unidad_id && suyas.has(e.unidad_id)) ?? [];
+  const gastos = susEgresos.reduce((acc, e) => acc + (e.monto || 0), 0);
+  const gastosTransferencia = susEgresos
+    .filter((e) => e.metodo_pago === "transferencia")
+    .reduce((acc, e) => acc + (e.monto || 0), 0);
+  const gastosEfectivo = gastos - gastosTransferencia;
+
+  // Dónde quedó la plata: lo digital entró a sus cuentas, el resto es efectivo en caja
+  const digital = calcDigitalPorDueno(v, cuentas)[propietario] ?? 0;
+  const ventasEfectivo = ingresos - digital;
 
   return {
     ingresos,
@@ -289,5 +296,43 @@ export function calcLiquidacion(
     tradicionales,
     especiales,
     totalPizzas: tradicionales + especiales,
+    // Desglose: ambas partes suman exactamente `liquidacion`
+    digital,
+    ventasEfectivo,
+    gastosEfectivo,
+    gastosTransferencia,
+    enEfectivo: ventasEfectivo - gastosEfectivo,
+    enDigital: digital - gastosTransferencia,
   };
+}
+
+/* ──────── Digital por dueño ────────
+   Cada cuenta digital pertenece a un dueño y eso no varía, así que basta con
+   mirar a qué cuenta entró cada pago. El cajero ya elige la cuenta en el paso
+   de digitales: no hay que pedirle nada extra ni estimar ningún reparto.
+
+   Los pagos a cuentas sin dueño se acumulan aparte para que queden visibles
+   en vez de desaparecer de ambas liquidaciones.
+*/
+export type CuentaParaLiquidacion = { id: string; propietario: number | null };
+
+export function calcDigitalPorDueno(
+  v: Partial<CierreFormValues>,
+  cuentas: CuentaParaLiquidacion[],
+) {
+  const duenoDe = new Map(cuentas.map((c) => [c.id, c.propietario]));
+  const total: Record<number, number> & { sinDueno: number } = {
+    1: 0,
+    2: 0,
+    sinDueno: 0,
+  };
+
+  for (const linea of v.digitales ?? []) {
+    const monto = linea.monto || 0;
+    const dueno = duenoDe.get(linea.cuenta_digital_id);
+    if (dueno === 1 || dueno === 2) total[dueno] += monto;
+    else total.sinDueno += monto;
+  }
+
+  return total;
 }

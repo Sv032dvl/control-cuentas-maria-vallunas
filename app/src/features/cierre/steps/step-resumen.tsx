@@ -11,14 +11,16 @@ import { calcTotales, calcRecaudoTerceros } from "../schema";
 import { cn } from "@/lib/utils";
 import { LiquidacionesCard } from "../components/liquidacion-card";
 import type { CierreFormValues } from "../schema";
-import type { CatalogProducto, CatalogUnidad } from "../loaders";
+import type { CatalogProducto, CatalogUnidad, CatalogCuentaDigital } from "../loaders";
 
 export function StepResumen({
   productos,
   unidades,
+  cuentas,
 }: {
   productos: CatalogProducto[];
   unidades: CatalogUnidad[];
+  cuentas: CatalogCuentaDigital[];
 }) {
   const { watch, setValue } = useFormContext<CierreFormValues>();
   const all = watch();
@@ -97,7 +99,11 @@ export function StepResumen({
         </Card>
       )}
 
-      <LiquidacionesCard productos={productos} unidades={unidades} />
+      <LiquidacionesCard
+        productos={productos}
+        unidades={unidades}
+        cuentas={cuentas}
+      />
 
       {!t.cuadrado && Math.abs(t.diferencia) > 10000 && (
         <div className="flex items-start gap-2.5 rounded-2xl border border-amber-200/70 bg-amber-50/80 dark:border-amber-800/40 dark:bg-amber-950/30 px-4 py-3 shadow-sm backdrop-blur-sm">

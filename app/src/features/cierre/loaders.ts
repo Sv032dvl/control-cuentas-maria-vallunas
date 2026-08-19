@@ -22,7 +22,7 @@ export type CatalogDenominacion = Pick<
 >;
 export type CatalogCuentaDigital = Pick<
   Tables<"cuentas_digitales">,
-  "id" | "nombre" | "es_datafono"
+  "id" | "nombre" | "propietario"
 >;
 
 export type Catalogos = {
@@ -85,7 +85,7 @@ export async function loadCatalogos(): Promise<Catalogos> {
       .order("valor"),
     supabase
       .from("cuentas_digitales")
-      .select("id, nombre, es_datafono")
+      .select("id, nombre, propietario")
       .eq("activo", true)
       .order("orden")
       .order("nombre"),
@@ -97,6 +97,46 @@ export async function loadCatalogos(): Promise<Catalogos> {
     categorias: categorias.data ?? [],
     denominaciones: denominaciones.data ?? [],
     cuentas_digitales: cuentas_digitales.data ?? [],
+  };
+}
+
+export type UltimaBase = {
+  fecha: string;
+  base_inicial: number;
+  base_billetes: number;
+  base_monedas: number;
+} | null;
+
+/**
+ * La base del cierre más reciente anterior a `fecha`, como referencia para
+ * que el cajero contraste lo que cuenta al abrir.
+ *
+ * No se filtra por empleado a propósito: la caja es una sola y física, así
+ * que lo que importa es qué base quedó registrada la última vez, sin importar
+ * quién cerró.
+ */
+export async function loadUltimaBase(antesDe: string): Promise<UltimaBase> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("cierres_diarios")
+    .select("fecha, base_inicial, base_billetes, base_monedas")
+    .lt("fecha", antesDe)
+    .order("fecha", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[loadUltimaBase]", error);
+    return null;
+  }
+  if (!data) return null;
+
+  return {
+    fecha: String(data.fecha),
+    base_inicial: Number(data.base_inicial ?? 0),
+    base_billetes: Number(data.base_billetes ?? 0),
+    base_monedas: Number(data.base_monedas ?? 0),
   };
 }
 
@@ -206,22 +246,18 @@ export type LoyverseVenta = {
   precio_unitario: number;
 };
 
-export type LoyverseDigital = {
-  monto: number;
-  descripcion: string;
-};
-
 export type LoyverseData = {
   ventas: LoyverseVenta[];
-  digitales: LoyverseDigital[];
   totalVentas: number;
-  totalDigital: number;
 } | null;
 
 /**
  * Carga las ventas del día desde Loyverse y las cruza con productos en DB.
- * Retorna ventas agrupadas por producto + pagos con tarjeta como ingresos digitales.
  * Retorna null si la API falla (para no bloquear el cierre).
+ *
+ * No se usa el método de pago de Loyverse: los pagos digitales los registra
+ * el cajero a mano en la cuenta que los recibió, y de esa cuenta se deduce
+ * a qué dueño pertenecen.
  */
 export async function loadVentasLoyverse(fecha: string): Promise<LoyverseData> {
   try {
@@ -243,10 +279,8 @@ export async function loadVentasLoyverse(fecha: string): Promise<LoyverseData> {
 
     // Agrupar line_items por item_id y sumar cantidades
     const ventasMap = new Map<string, { cantidad: number; precio: number }>();
-    let totalDigital = 0;
 
     for (const receipt of receipts) {
-      // Agrupar ventas por producto
       for (const item of receipt.line_items) {
         const existing = ventasMap.get(item.item_id);
         if (existing) {
@@ -256,13 +290,6 @@ export async function loadVentasLoyverse(fecha: string): Promise<LoyverseData> {
             cantidad: item.quantity,
             precio: item.price,
           });
-        }
-      }
-
-      // Sumar pagos con tarjeta (datafono)
-      for (const payment of receipt.payments) {
-        if (payment.type === "NONINTEGRATEDCARD") {
-          totalDigital += payment.money_amount;
         }
       }
     }
@@ -285,15 +312,7 @@ export async function loadVentasLoyverse(fecha: string): Promise<LoyverseData> {
       0,
     );
 
-    const digitales: LoyverseDigital[] = [];
-    if (totalDigital > 0) {
-      digitales.push({
-        monto: totalDigital,
-        descripcion: "Pagos con tarjeta (Loyverse)",
-      });
-    }
-
-    return { ventas, digitales, totalVentas, totalDigital };
+    return { ventas, totalVentas };
   } catch (err) {
     console.error("[loadVentasLoyverseHoy]", err);
     return null;

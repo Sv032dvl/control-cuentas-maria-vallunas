@@ -9,7 +9,6 @@ import {
   Trash2,
   ToggleLeft,
   ToggleRight,
-  CreditCard,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -40,11 +39,59 @@ import {
   eliminarCuentaDigitalAction,
 } from "../actions";
 import type { Tables } from "@/lib/database.types";
+import { PROPIETARIOS, nombrePropietario } from "@/lib/negocio";
 
 type CuentaDigital = Tables<"cuentas_digitales">;
 
 interface Props {
   cuentas: CuentaDigital[];
+}
+
+/**
+ * A qué dueño pertenece la cuenta. Es lo que permite saber de quién es cada
+ * pago digital sin pedirle nada extra al cajero: él ya elige la cuenta al
+ * registrar el ingreso.
+ */
+function PropietarioPicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: number | null;
+  onChange: (v: number | null) => void;
+  disabled?: boolean;
+}) {
+  const opciones: { v: number | null; label: string }[] = [
+    ...PROPIETARIOS.map((p) => ({ v: p.id as number | null, label: `${p.emoji} ${p.nombre}` })),
+    { v: null, label: "Sin asignar" },
+  ];
+
+  return (
+    <div className="space-y-1.5">
+      <Label>Dueño de la cuenta</Label>
+      <div className="grid grid-cols-3 gap-2">
+        {opciones.map((o) => (
+          <button
+            key={o.v ?? "ninguno"}
+            type="button"
+            onClick={() => onChange(o.v)}
+            disabled={disabled}
+            className={[
+              "rounded-lg border-2 px-2 py-2 text-xs font-medium transition-colors",
+              value === o.v
+                ? "border-primary bg-primary/5 text-primary"
+                : "border-border text-muted-foreground hover:border-primary/50",
+            ].join(" ")}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Los pagos que entren a esta cuenta se abonan a ese dueño.
+      </p>
+    </div>
+  );
 }
 
 export function CuentasDigitalesTable({ cuentas }: Props) {
@@ -73,7 +120,7 @@ export function CuentasDigitalesTable({ cuentas }: Props) {
           <TableHeader>
             <TableRow>
               <TableHead>Nombre</TableHead>
-              <TableHead>Tipo</TableHead>
+              <TableHead>Dueño</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="w-[140px]">Acciones</TableHead>
             </TableRow>
@@ -125,11 +172,13 @@ function CuentaRow({ cuenta }: { cuenta: CuentaDigital }) {
       <TableRow className={!cuenta.activo ? "opacity-50" : ""}>
         <TableCell className="font-medium">{cuenta.nombre}</TableCell>
         <TableCell>
-          {cuenta.es_datafono && (
+          {cuenta.propietario ? (
             <Badge variant="secondary" className="gap-1">
-              <CreditCard className="size-3" />
-              Datáfono
+              {cuenta.propietario === 1 ? "🥟" : "🍕"}
+              {nombrePropietario(cuenta.propietario)}
             </Badge>
+          ) : (
+            <span className="text-xs text-muted-foreground italic">Sin asignar</span>
           )}
         </TableCell>
         <TableCell>
@@ -201,7 +250,7 @@ function CrearCuentaDialog() {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [esDatafono, setEsDatafono] = useState(false);
+  const [propietario, setPropietario] = useState<number | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   function handleOpenChange(next: boolean) {
@@ -209,7 +258,7 @@ function CrearCuentaDialog() {
     if (next) {
       formRef.current?.reset();
       setError(null);
-      setEsDatafono(false);
+      setPropietario(null);
     }
   }
 
@@ -219,7 +268,7 @@ function CrearCuentaDialog() {
     if (!formRef.current) return;
 
     const formData = new FormData(formRef.current);
-    formData.set("es_datafono", String(esDatafono));
+    formData.set("propietario", propietario === null ? "" : String(propietario));
     startTransition(async () => {
       const result = await crearCuentaDigitalAction(formData);
       if (result.success) {
@@ -261,16 +310,11 @@ function CrearCuentaDialog() {
               disabled={isPending}
             />
           </div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={esDatafono}
-              onChange={(e) => setEsDatafono(e.target.checked)}
-              className="rounded border-border"
-              disabled={isPending}
-            />
-            <span className="text-sm">Es cuenta de datáfono (Loyverse)</span>
-          </label>
+          <PropietarioPicker
+            value={propietario}
+            onChange={setPropietario}
+            disabled={isPending}
+          />
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -303,14 +347,14 @@ function EditarCuentaDialog({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [esDatafono, setEsDatafono] = useState(cuenta.es_datafono);
+  const [propietario, setPropietario] = useState<number | null>(cuenta.propietario);
   const formRef = useRef<HTMLFormElement>(null);
 
   function handleOpenChange(next: boolean) {
     onOpenChange(next);
     if (next) {
       setError(null);
-      setEsDatafono(cuenta.es_datafono);
+      setPropietario(cuenta.propietario);
     }
   }
 
@@ -320,7 +364,7 @@ function EditarCuentaDialog({
     if (!formRef.current) return;
 
     const formData = new FormData(formRef.current);
-    formData.set("es_datafono", String(esDatafono));
+    formData.set("propietario", propietario === null ? "" : String(propietario));
     startTransition(async () => {
       const result = await editarCuentaDigitalAction(cuenta.id, formData);
       if (result.success) {
@@ -355,16 +399,11 @@ function EditarCuentaDialog({
               disabled={isPending}
             />
           </div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={esDatafono}
-              onChange={(e) => setEsDatafono(e.target.checked)}
-              className="rounded border-border"
-              disabled={isPending}
-            />
-            <span className="text-sm">Es cuenta de datáfono (Loyverse)</span>
-          </label>
+          <PropietarioPicker
+            value={propietario}
+            onChange={setPropietario}
+            disabled={isPending}
+          />
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>

@@ -165,6 +165,7 @@ No existe super_admin ni otros roles.
 - `id`, `fecha`, `empleado_id`, `base_inicial`, `base_billetes`, `base_monedas`, `base_editado`, `ventas_tpv_total`, `efectivo_contado`, `ingresos_digitales_total`, `arqueo_monedas`, `efectivo_esperado`, `diferencia`, `cuadrado`, `nota_diferencia`, `estado` ('abierto'|'cerrado'), `created_at`, `updated_at`
 - Liquidación por propietario: `empanadas_ingresos`/`empanadas_gastos`/`empanadas_liquidacion` y `pizzeria_ingresos`/`pizzeria_gastos`/`pizzeria_liquidacion` (las `*_liquidacion` son columnas **generadas** = ingresos − gastos), más `pizzas_tradicionales` y `pizzas_especiales`
 - `recaudo_terceros_total`: plata cobrada que no es del negocio (domicilios). Se resta de las ventas pero **no** del cuadre
+- `empanadas_digital` / `pizzeria_digital`: cuánto de los ingresos de cada dueño entró por cuenta digital en vez de efectivo
 - Constraint: un cierre por empleado por día
 - `base_billetes` + `base_monedas` = `base_inicial` (desglose de la base)
 - `base_editado`: true si el empleado modificó la base tras confirmarla (visible al admin con alerta amarilla)
@@ -195,7 +196,7 @@ No existe super_admin ni otros roles.
 - `categorias_egreso` — Categorías de gasto
 - `unidades_negocio` — Ver "Dos propietarios" arriba para el estado real de cada unidad
 - `denominaciones_billete` — Denominaciones de billetes
-- `cuentas_digitales` — Cuentas de pago digital administrables por el admin (`nombre`, `activo`, `es_datafono`, `orden`). Solo una puede tener `es_datafono = true` (índice único parcial) — es la que recibe los pagos con tarjeta importados de Loyverse
+- `cuentas_digitales` — Cuentas de pago digital (`nombre`, `activo`, `propietario`, `orden`). **`propietario` define de quién es cada pago que entra ahí** — ver "Efectivo vs digital por dueño". No existe datáfono: todos los pagos digitales entran a una de las cuatro cuentas Nequi
 - `sync_loyverse_pendientes` — Cambios detectados en Loyverse pendientes de aprobación del admin
 
 ### Vistas
@@ -264,6 +265,41 @@ Qué unidad es de quién lo dice `unidades_negocio.propietario` (1, 2 o null), a
 
 `PROPIETARIOS`, `UNIDAD_PIZZERIA_ID` y los tipos de pizza viven en `lib/negocio.ts` (compartidos entre `cierre` y `catalogos`).
 
+### Efectivo vs digital por dueño
+
+La liquidación además se abre en **dónde quedó la plata**:
+
+```
+Le corresponde  = ingresos − gastos
+  ├─ En efectivo = (ingresos − digital) − gastos_efectivo
+  └─ En digital  = digital − gastos_transferencia
+```
+
+**Cómo se sabe de quién es un pago digital**: por la cuenta que lo recibió. `cuentas_digitales.propietario` no varía, así que el cajero no asigna nada — ya elige la cuenta al registrar el ingreso y el dueño se deduce solo.
+
+| Cuenta | Dueño |
+|---|---|
+| Diego nequi, MariaE nequi | 1 — Empanadas |
+| David nequi, Nanis nequi | 2 — Pizzería |
+
+`calcDigitalPorDueno()` en `cierre/schema.ts` hace la suma. Los pagos a cuentas **sin dueño asignado** se acumulan aparte (`sinDueno`) para que queden visibles en la auditoría en vez de desaparecer de ambas liquidaciones.
+
+Se persiste en `cierres_diarios.empanadas_digital` / `pizzeria_digital`.
+
+⚠️ **No se usa el método de pago de Loyverse.** Antes había una cuenta marcada `es_datafono` que se pre-llenaba con el total de tarjeta del TPV; eso se eliminó junto con la columna. Loyverse ahora solo sirve para **importar ventas**.
+
+### Auditoría — `/dashboard/cuentas-digitales`
+
+Sección admin de solo consulta (el CRUD sigue en Catálogos): total por cuenta y por dueño, y detalle día por día. `features/cuentas-digitales/`.
+
+⚠️ `ingresos_digitales` **no tiene fecha propia**: vive en el cierre. Cualquier consulta temporal tiene que unir por `cierre_id` → `cierres_diarios.fecha`, y filtrar con `cierres_diarios!inner(fecha)`.
+
+### Base esperada en el paso 1
+
+`loadUltimaBase(antesDe)` trae la base del cierre más reciente anterior a la fecha. **No filtra por empleado a propósito**: la caja es física y una sola, así que importa qué base quedó, no quién cerró.
+
+Se muestra como referencia y avisa si lo contado difiere, pero **no pre-llena** los campos — pre-llenar invitaría a confirmar sin contar. Las bases reales varían bastante ($643.900–$961.500).
+
 ## Cierre de caja — Wizard (detalle completo)
 
 ### Estructura de archivos
@@ -271,7 +307,7 @@ Qué unidad es de quién lo dice `unidades_negocio.propietario` (1, 2 o null), a
 ```
 features/cierre/
 ├── cierre-wizard.tsx          ← Orquestador principal (React Hook Form + 7 pasos)
-├── schema.ts                  ← Zod schemas (estricto + draft) + calcTotales() + calcPizza() + calcLiquidacion() + calcRecaudoTerceros()
+├── schema.ts                  ← Zod schemas (estricto + draft) + calcTotales() + calcPizza() + calcLiquidacion() + calcRecaudoTerceros() + calcDigitalPorDueno()
 ├── actions.ts                 ← Server Actions (guardar, guardarDraft, importar Loyverse, reordenar)
 ├── loaders.ts                 ← Loaders server-side (catálogos, cierre existente, Loyverse, pizza)
 ├── hooks/

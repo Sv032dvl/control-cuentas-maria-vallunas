@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormContext, useFieldArray } from "react-hook-form";
-import { Smartphone, Plus, Trash2, Zap } from "lucide-react";
+import { Smartphone, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,14 +16,13 @@ import {
 import { MoneyInput } from "../components/money-input";
 import { money } from "@/lib/format";
 import type { CierreFormValues } from "../schema";
-import type { CatalogCuentaDigital, LoyverseData } from "../loaders";
+import type { CatalogCuentaDigital } from "../loaders";
 
 type Props = {
   cuentas: CatalogCuentaDigital[];
-  loyverseData: LoyverseData;
 };
 
-export function StepDigitales({ cuentas, loyverseData }: Props) {
+export function StepDigitales({ cuentas }: Props) {
   const { control, watch, setValue } = useFormContext<CierreFormValues>();
   const { fields, append, remove } = useFieldArray({
     control,
@@ -43,16 +42,9 @@ export function StepDigitales({ cuentas, loyverseData }: Props) {
           Ingresos digitales
         </h2>
         <p className="text-sm text-muted-foreground">
-          Registra el total recibido en cada cuenta digital.
+          Registra el total recibido en cada cuenta. La cuenta define de qué
+          dueño es el pago.
         </p>
-        {loyverseData && loyverseData.totalDigital > 0 && (
-          <div className="flex items-center gap-2 rounded-2xl border border-blue-200/70 bg-blue-50/80 dark:border-blue-800/40 dark:bg-blue-950/30 px-3.5 py-2.5 shadow-sm backdrop-blur-sm">
-            <Zap className="size-4 text-blue-600 dark:text-blue-400 shrink-0" />
-            <p className="text-xs text-blue-700 dark:text-blue-300">
-              Datáfono importado del TPV — {money(loyverseData.totalDigital)}
-            </p>
-          </div>
-        )}
       </div>
 
       <ul className="space-y-3">

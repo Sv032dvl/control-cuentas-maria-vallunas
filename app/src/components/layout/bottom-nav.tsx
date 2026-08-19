@@ -17,7 +17,11 @@ export function BottomNav({ role }: Props) {
       aria-label="Navegación principal"
       className="md:hidden sticky bottom-0 z-30 border-t bg-background/95 backdrop-blur pb-[env(safe-area-inset-bottom)]"
     >
-      <ul className="mx-auto grid max-w-5xl grid-cols-4 gap-1 px-1 py-1.5">
+      {/* Columnas según los ítems del rol: admin y empleado tienen distinta cantidad */}
+      <ul
+        className="mx-auto grid max-w-5xl gap-0.5 px-1 py-1.5"
+        style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+      >
         {items.map((item) => {
           const Icon = item.icon;
           const active =
@@ -27,7 +31,7 @@ export function BottomNav({ role }: Props) {
               <Link
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[11px] font-medium transition-colors",
+                  "flex flex-col items-center gap-0.5 rounded-xl px-0.5 py-1.5 text-[10px] font-medium leading-tight text-center transition-colors",
                   active
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground",

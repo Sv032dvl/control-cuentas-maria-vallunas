@@ -35,7 +35,7 @@ import { SaveStatusIndicator } from "./components/save-status";
 import { RestoreDraftBanner } from "./components/restore-draft-banner";
 import { money } from "@/lib/format";
 import { SummaryPanel } from "./components/summary-panel";
-import type { Catalogos, CierreExistente, LoyverseData, PizzaExistente } from "./loaders";
+import type { Catalogos, CierreExistente, LoyverseData, PizzaExistente, UltimaBase } from "./loaders";
 
 const STEPS: Step[] = [
   { id: "base", label: "Base inicial", short: "Base" },
@@ -51,12 +51,13 @@ type Props = {
   catalogos: Catalogos;
   existente: CierreExistente;
   loyverseData: LoyverseData;
+  ultimaBase: UltimaBase;
   pizzaExistente: PizzaExistente;
   fecha: string;
   userId: string;
 };
 
-export function CierreWizard({ catalogos, existente, loyverseData, pizzaExistente, fecha, userId }: Props) {
+export function CierreWizard({ catalogos, existente, loyverseData, pizzaExistente, ultimaBase, fecha, userId }: Props) {
   const [step, setStep] = useState(0);
   const [isPending, startTransition] = useTransition();
   const [showConfirm, setShowConfirm] = useState(false);
@@ -191,7 +192,7 @@ export function CierreWizard({ catalogos, existente, loyverseData, pizzaExistent
         {/* Columna izquierda: wizard */}
         <div className="flex-1 min-w-0 space-y-5">
         <div>
-          {step === 0 && <StepBase />}
+          {step === 0 && <StepBase ultimaBase={ultimaBase} />}
           {step === 1 && <StepPizza />}
           {step === 2 && (
             <StepEgresos
@@ -208,17 +209,13 @@ export function CierreWizard({ catalogos, existente, loyverseData, pizzaExistent
               fecha={fecha}
             />
           )}
-          {step === 4 && (
-            <StepDigitales
-              cuentas={catalogos.cuentas_digitales}
-              loyverseData={loyverseData}
-            />
-          )}
+          {step === 4 && <StepDigitales cuentas={catalogos.cuentas_digitales} />}
           {step === 5 && <StepArqueo denominaciones={catalogos.denominaciones} />}
           {step === 6 && (
             <StepResumen
               productos={catalogos.productos}
               unidades={catalogos.unidades}
+              cuentas={catalogos.cuentas_digitales}
             />
           )}
         </div>
@@ -416,14 +413,9 @@ function buildDefaults(
     pizza_porciones_final: pizzaExistente?.porciones_final ?? 0,
     pizza_notas: pizzaExistente?.notas ?? "",
     ventas: [],
-    digitales: loyverseData?.digitales.map((d) => {
-      const cuentaDatafono = catalogos.cuentas_digitales.find((c) => c.es_datafono);
-      return {
-        cuenta_digital_id: cuentaDatafono?.id ?? "",
-        monto: d.monto,
-        descripcion: d.descripcion,
-      };
-    }) ?? [],
+    // Los pagos digitales los registra el cajero en la cuenta que los recibió:
+    // de esa cuenta se deduce a qué dueño pertenecen. No se pre-llenan.
+    digitales: [],
     egresos: [],
     arqueo,
     arqueo_monedas: 0,

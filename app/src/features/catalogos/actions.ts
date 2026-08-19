@@ -42,7 +42,12 @@ const DenominacionSchema = z.object({
 
 const CuentaDigitalSchema = z.object({
   nombre: z.string().min(2, "Mínimo 2 caracteres").max(50, "Máximo 50 caracteres"),
-  es_datafono: z.coerce.boolean().default(false),
+  // De qué dueño es la cuenta: 1 = Empanadas, 2 = Pizzería.
+  // Define a quién se le abona cada pago digital que entre ahí.
+  propietario: z.preprocess(
+    (v) => (v === "" || v == null ? null : Number(v)),
+    z.union([z.literal(1), z.literal(2)]).nullable(),
+  ),
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -632,7 +637,7 @@ export async function crearCuentaDigitalAction(
 
   const parsed = CuentaDigitalSchema.safeParse({
     nombre: formData.get("nombre"),
-    es_datafono: formData.get("es_datafono") === "true",
+    propietario: formData.get("propietario"),
   });
 
   if (!parsed.success) {
@@ -644,7 +649,6 @@ export async function crearCuentaDigitalAction(
 
   if (error) {
     console.error("[crearCuentaDigital]", error);
-    if (error.code === "23505") return { error: "Ya existe una cuenta de datáfono. Solo puede haber una." };
     return { error: "Error al crear la cuenta digital" };
   }
 
@@ -664,7 +668,7 @@ export async function editarCuentaDigitalAction(
 
   const parsed = CuentaDigitalSchema.safeParse({
     nombre: formData.get("nombre"),
-    es_datafono: formData.get("es_datafono") === "true",
+    propietario: formData.get("propietario"),
   });
 
   if (!parsed.success) {
@@ -679,7 +683,6 @@ export async function editarCuentaDigitalAction(
 
   if (error) {
     console.error("[editarCuentaDigital]", error);
-    if (error.code === "23505") return { error: "Ya existe una cuenta de datáfono. Solo puede haber una." };
     return { error: "Error al actualizar la cuenta digital" };
   }
 

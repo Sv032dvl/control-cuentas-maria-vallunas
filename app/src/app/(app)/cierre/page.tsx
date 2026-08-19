@@ -9,6 +9,7 @@ import {
   loadCierreByFecha,
   loadVentasLoyverse,
   loadInventarioPizza,
+  loadUltimaBase,
 } from "@/features/cierre/loaders";
 
 export const metadata: Metadata = {
@@ -46,12 +47,14 @@ export default async function CierrePage({ searchParams }: Props) {
     redirect("/cierre");
   }
 
-  const [catalogos, existente, loyverseData, pizzaExistente] = await Promise.all([
-    loadCatalogos(),
-    loadCierreByFecha(user.id, fecha),
-    loadVentasLoyverse(fecha),
-    loadInventarioPizza(fecha),
-  ]);
+  const [catalogos, existente, loyverseData, pizzaExistente, ultimaBase] =
+    await Promise.all([
+      loadCatalogos(),
+      loadCierreByFecha(user.id, fecha),
+      loadVentasLoyverse(fecha),
+      loadInventarioPizza(fecha),
+      loadUltimaBase(fecha),
+    ]);
 
   return (
     <div className="space-y-6">
@@ -62,6 +65,7 @@ export default async function CierrePage({ searchParams }: Props) {
         existente={existente}
         loyverseData={loyverseData}
         pizzaExistente={pizzaExistente}
+        ultimaBase={ultimaBase}
         fecha={fecha}
         userId={user.id}
       />

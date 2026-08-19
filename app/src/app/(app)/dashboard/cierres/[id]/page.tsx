@@ -54,7 +54,7 @@ export default async function CierreDetailPage({ params }: Params) {
       supabase
         .from("cierres_diarios")
         .select(
-          "pizzeria_ingresos, pizzeria_gastos, pizzeria_liquidacion, pizzas_tradicionales, pizzas_especiales, recaudo_terceros_total, empanadas_ingresos, empanadas_gastos, empanadas_liquidacion",
+          "pizzeria_ingresos, pizzeria_gastos, pizzeria_liquidacion, pizzeria_digital, pizzas_tradicionales, pizzas_especiales, recaudo_terceros_total, empanadas_ingresos, empanadas_gastos, empanadas_liquidacion, empanadas_digital",
         )
         .eq("id", id)
         .maybeSingle(),
@@ -200,6 +200,18 @@ export default async function CierreDetailPage({ params }: Params) {
               value={money(Number(liquidaciones.empanadas_liquidacion ?? 0))}
               bold
             />
+            <hr className="border-border my-1" />
+            <Row
+              label="  Recibido en digital"
+              value={money(Number(liquidaciones.empanadas_digital ?? 0))}
+            />
+            <Row
+              label="  Recibido en efectivo"
+              value={money(
+                Number(liquidaciones.empanadas_ingresos ?? 0) -
+                  Number(liquidaciones.empanadas_digital ?? 0),
+              )}
+            />
           </Card>
         )}
 
@@ -216,6 +228,18 @@ export default async function CierreDetailPage({ params }: Params) {
               label="Le corresponde"
               value={money(Number(liquidaciones.pizzeria_liquidacion ?? 0))}
               bold
+            />
+            <hr className="border-orange-200/70 dark:border-orange-800/40 my-1" />
+            <Row
+              label="  Recibido en digital"
+              value={money(Number(liquidaciones.pizzeria_digital ?? 0))}
+            />
+            <Row
+              label="  Recibido en efectivo"
+              value={money(
+                Number(liquidaciones.pizzeria_ingresos ?? 0) -
+                  Number(liquidaciones.pizzeria_digital ?? 0),
+              )}
             />
             <hr className="border-orange-200/70 dark:border-orange-800/40 my-1" />
             <Row

@@ -2,22 +2,30 @@
 
 import { useEffect } from "react";
 import { useFormContext } from "react-hook-form";
-import { Wallet, Banknote, Coins, Check, Pencil } from "lucide-react";
+import { Wallet, Banknote, Coins, Check, Pencil, History, TriangleAlert } from "lucide-react";
 import { MoneyInput } from "../components/money-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { money } from "@/lib/format";
+import { money, dateShort } from "@/lib/format";
 import type { CierreFormValues } from "../schema";
+import type { UltimaBase } from "../loaders";
 
-export function StepBase() {
+export function StepBase({ ultimaBase }: { ultimaBase: UltimaBase }) {
   const { watch, setValue } = useFormContext<CierreFormValues>();
   const billetes = watch("base_billetes");
   const monedas = watch("base_monedas");
   const confirmado = watch("base_confirmado");
   const total = (billetes ?? 0) + (monedas ?? 0);
+
+  // Se compara contra lo que quedó registrado la última vez, pero no se
+  // pre-llena: la idea es que el cajero cuente y la diferencia salte a la
+  // vista, no que confirme un número que le dieron hecho.
+  const esperada = ultimaBase?.base_inicial ?? null;
+  const diferencia = esperada !== null && total > 0 ? total - esperada : null;
+  const descuadrada = diferencia !== null && Math.abs(diferencia) >= 1;
 
   // Sincronizar base_inicial = billetes + monedas
   useEffect(() => {
@@ -58,6 +66,38 @@ export function StepBase() {
           Efectivo con el que abriste la caja esta mañana.
         </p>
       </div>
+
+      {esperada !== null && (
+        <div
+          className={cn(
+            "rounded-2xl border px-4 py-3 space-y-1 shadow-sm",
+            descuadrada
+              ? "border-amber-200/70 bg-amber-50/80 dark:border-amber-800/40 dark:bg-amber-950/30"
+              : "border-border bg-muted/40",
+          )}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <History className="size-3.5" />
+              Base esperada · último cierre {dateShort(ultimaBase!.fecha)}
+            </span>
+            <span className="tabular-nums font-semibold">{money(esperada)}</span>
+          </div>
+          {descuadrada && (
+            <p className="text-xs text-amber-700 dark:text-amber-300 flex items-start gap-1.5 pt-0.5">
+              <TriangleAlert className="size-3.5 shrink-0 mt-px" />
+              <span>
+                Lo que contaste difiere en{" "}
+                <strong className="tabular-nums">
+                  {money(Math.abs(diferencia!))}
+                </strong>{" "}
+                {diferencia! > 0 ? "de más" : "de menos"}. Verifica antes de
+                confirmar.
+              </span>
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="space-y-4">
         <div className="space-y-2">

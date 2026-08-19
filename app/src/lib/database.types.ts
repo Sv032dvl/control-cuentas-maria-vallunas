@@ -97,6 +97,7 @@ export type Database = {
           diferencia: number
           efectivo_contado: number
           efectivo_esperado: number
+          empanadas_digital: number
           empanadas_gastos: number
           empanadas_ingresos: number
           empanadas_liquidacion: number | null
@@ -109,6 +110,7 @@ export type Database = {
           recaudo_terceros_total: number
           pizzas_especiales: number
           pizzas_tradicionales: number
+          pizzeria_digital: number
           pizzeria_gastos: number
           pizzeria_ingresos: number
           pizzeria_liquidacion: number | null
@@ -126,6 +128,7 @@ export type Database = {
           diferencia?: number
           efectivo_contado?: number
           efectivo_esperado?: number
+          empanadas_digital?: number
           empanadas_gastos?: number
           empanadas_ingresos?: number
           empanadas_liquidacion?: number | null
@@ -138,6 +141,7 @@ export type Database = {
           recaudo_terceros_total?: number
           pizzas_especiales?: number
           pizzas_tradicionales?: number
+          pizzeria_digital?: number
           pizzeria_gastos?: number
           pizzeria_ingresos?: number
           pizzeria_liquidacion?: number | null
@@ -155,6 +159,7 @@ export type Database = {
           diferencia?: number
           efectivo_contado?: number
           efectivo_esperado?: number
+          empanadas_digital?: number
           empanadas_gastos?: number
           empanadas_ingresos?: number
           empanadas_liquidacion?: number | null
@@ -167,6 +172,7 @@ export type Database = {
           recaudo_terceros_total?: number
           pizzas_especiales?: number
           pizzas_tradicionales?: number
+          pizzeria_digital?: number
           pizzeria_gastos?: number
           pizzeria_ingresos?: number
           pizzeria_liquidacion?: number | null
@@ -321,7 +327,7 @@ export type Database = {
           id: string
           nombre: string
           activo: boolean
-          es_datafono: boolean
+          propietario: number | null
           orden: number
           created_at: string
         }
@@ -329,7 +335,7 @@ export type Database = {
           id?: string
           nombre: string
           activo?: boolean
-          es_datafono?: boolean
+          propietario?: number | null
           orden?: number
           created_at?: string
         }
@@ -337,7 +343,7 @@ export type Database = {
           id?: string
           nombre?: string
           activo?: boolean
-          es_datafono?: boolean
+          propietario?: number | null
           orden?: number
           created_at?: string
         }
